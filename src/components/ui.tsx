@@ -107,9 +107,21 @@ export function Field({
 export const inputClass =
   "w-full border border-line bg-bg px-3 py-2.5 font-body text-[13px] font-light text-fg outline-none transition placeholder:text-fg-dim focus:border-line-strong hover:border-line-strong";
 
+const QUAL_STYLES: Record<Qualification, string> = {
+  Hot: "border-[#e85d4c]/55 bg-[#e85d4c]/10 text-[#e85d4c]",
+  Warm: "border-[#d4a017]/55 bg-[#d4a017]/10 text-[#d4a017]",
+  Cold: "border-[#5b8def]/55 bg-[#5b8def]/10 text-[#5b8def]",
+  Unqualified: "border-line-strong bg-transparent text-fg-muted",
+};
+
 export function QualBadge({ q }: { q: Qualification }) {
   return (
-    <span className="inline-flex border border-line-strong px-2.5 py-1 font-body text-[10px] font-light uppercase tracking-[0.14em] text-fg">
+    <span
+      className={clsx(
+        "inline-flex border px-2.5 py-1 font-body text-[10px] font-light uppercase tracking-[0.14em]",
+        QUAL_STYLES[q],
+      )}
+    >
       {q}
     </span>
   );

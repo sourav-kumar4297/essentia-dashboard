@@ -7,11 +7,14 @@ import { usePortal } from "@/lib/store";
 import type {
   BusinessUnit,
   Lead,
+  LeadStage,
   ProjectType,
+  Qualification,
   SourceChannel,
   Territory,
 } from "@/lib/types";
 import { CHANNEL_ORDER } from "@/lib/types";
+import { stageLabel } from "@/lib/sla";
 import { clsx } from "clsx";
 
 const TERRITORIES: Territory[] = ["Delhi", "Gurugram", "Mumbai"];
@@ -20,6 +23,24 @@ const PROJECT_TYPES: ProjectType[] = [
   "corporate",
   "commercial",
   "hospitality",
+];
+const QUALIFICATIONS: { value: Qualification; activeClass: string }[] = [
+  { value: "Hot", activeClass: "!border-[#e85d4c] !text-[#e85d4c] bg-[#e85d4c]/10" },
+  { value: "Warm", activeClass: "!border-[#d4a017] !text-[#d4a017] bg-[#d4a017]/10" },
+  { value: "Cold", activeClass: "!border-[#5b8def] !text-[#5b8def] bg-[#5b8def]/10" },
+  { value: "Unqualified", activeClass: "!border-fg !text-fg bg-surface-hover" },
+];
+const STAGE_OPTIONS: LeadStage[] = [
+  "new",
+  "contacted",
+  "qualified",
+  "handed_to_acquisition",
+  "consultation",
+  "proposal_draft",
+  "profile_sent",
+  "proposal_sent",
+  "accepted",
+  "handed_to_engagement",
 ];
 const BUDGET_RANGES = [
   "Under ₹25 L",
@@ -39,6 +60,8 @@ interface FormState {
   territory: Territory;
   location: string;
   projectType: ProjectType;
+  qualification: Qualification;
+  stage: LeadStage;
   budgetIndication: string;
   areaSqft: string;
   notes: string;
@@ -55,6 +78,8 @@ function emptyForm(): FormState {
     territory: "Gurugram",
     location: "",
     projectType: "residential",
+    qualification: "Unqualified",
+    stage: "new",
     budgetIndication: "",
     areaSqft: "",
     notes: "",
@@ -72,6 +97,8 @@ function formFromLead(lead: Lead): FormState {
     territory: lead.territory,
     location: lead.location,
     projectType: lead.projectType,
+    qualification: lead.qualification,
+    stage: lead.stage,
     budgetIndication: lead.budgetIndication ?? "",
     areaSqft: lead.areaSqft ? String(lead.areaSqft) : "",
     notes: lead.notes ?? "",
@@ -141,18 +168,31 @@ export function LeadFormPanel({
       territory: form.territory,
       location: form.location.trim() || form.territory,
       projectType: form.projectType,
+      qualification: form.qualification,
       budgetIndication: form.budgetIndication || undefined,
       areaSqft: form.areaSqft ? Number(form.areaSqft) : undefined,
       notes: form.notes.trim() || undefined,
     };
 
     if (lead) {
-      updateLead(lead.id, patch);
+      const stagePatch = {
+        stage: form.stage,
+        ...(form.stage !== "new" && !lead.firstContactedAt
+          ? { firstContactedAt: new Date().toISOString() }
+          : {}),
+        ...(form.stage === "accepted" || form.stage === "handed_to_engagement"
+          ? { signed: true }
+          : lead.signed &&
+              form.stage !== "accepted" &&
+              form.stage !== "handed_to_engagement"
+            ? { signed: false }
+            : {}),
+      };
+      updateLead(lead.id, { ...patch, ...stagePatch });
       onSaved?.(lead.id);
     } else {
       const id = addLead({
         ...patch,
-        qualification: "Unqualified",
         stage: "new",
         lastFollowUpAt: null,
         firstContactedAt: null,
@@ -343,6 +383,42 @@ export function LeadFormPanel({
                 />
               </Field>
             </div>
+
+            {editing && (
+              <Field label="Stage">
+                <select
+                  className={inputClass}
+                  value={form.stage}
+                  onChange={(e) => set("stage", e.target.value as LeadStage)}
+                >
+                  {STAGE_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {stageLabel(s)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+
+            <Field label="Type">
+              <div className="grid grid-cols-2 gap-2">
+                {QUALIFICATIONS.map(({ value, activeClass }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => set("qualification", value)}
+                    className={clsx(
+                      "label border px-3 py-2.5 uppercase tracking-[0.14em] transition",
+                      form.qualification === value
+                        ? activeClass
+                        : "border-line text-fg-muted hover:border-line-strong",
+                    )}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </Field>
 
             <Field label="Budget range">
               <select
