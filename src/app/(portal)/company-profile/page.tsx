@@ -297,25 +297,25 @@ function CompanyProfileInner() {
                   </p>
                 )}
               </div>
-              <aside className="bg-accent px-5 py-5 text-accent-fg">
-                <p className="font-body text-[10px] font-light uppercase tracking-[0.2em] opacity-60">
+              <aside className="border border-line-strong bg-surface-hover px-5 py-5 text-fg">
+                <p className="font-body text-[10px] font-light uppercase tracking-[0.2em] text-fg-muted">
                   Tone
                 </p>
-                <p className="mt-2 font-body text-[13px] font-light leading-relaxed opacity-90">
+                <p className="mt-2 font-body text-[13px] font-light leading-relaxed">
                   {voice.tone}
                 </p>
-                <p className="mt-5 font-body text-[10px] font-light uppercase tracking-[0.2em] opacity-60">
+                <p className="mt-5 font-body text-[10px] font-light uppercase tracking-[0.2em] text-fg-muted">
                   What we do
                 </p>
-                <ul className="mt-2 space-y-1 font-body text-[13px] font-light opacity-90">
+                <ul className="mt-2 space-y-1 font-body text-[13px] font-light">
                   <li>01 / Design</li>
                   <li>02 / Build</li>
                   <li>03 / Furniture</li>
                 </ul>
-                <p className="mt-5 font-body text-[10px] font-light uppercase tracking-[0.2em] opacity-60">
+                <p className="mt-5 font-body text-[10px] font-light uppercase tracking-[0.2em] text-fg-muted">
                   Lead
                 </p>
-                <p className="mt-2 font-body text-[13px] font-light opacity-90">
+                <p className="mt-2 font-body text-[13px] font-light">
                   {lead.businessUnit} · {lead.source} · {lead.territory}
                 </p>
               </aside>
