@@ -175,16 +175,16 @@ export function LeadFormPanel({
     };
 
     if (lead) {
+      const isSignedStage =
+        form.stage === "accepted" || form.stage === "handed_to_engagement";
       const stagePatch = {
         stage: form.stage,
         ...(form.stage !== "new" && !lead.firstContactedAt
           ? { firstContactedAt: new Date().toISOString() }
           : {}),
-        ...(form.stage === "accepted" || form.stage === "handed_to_engagement"
+        ...(isSignedStage
           ? { signed: true }
-          : lead.signed &&
-              form.stage !== "accepted" &&
-              form.stage !== "handed_to_engagement"
+          : lead.signed
             ? { signed: false }
             : {}),
       };
