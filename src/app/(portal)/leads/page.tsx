@@ -215,7 +215,7 @@ function LeadsInner() {
         </p>
       )}
 
-      <div className="panel-surface animate-rise">
+      <div className="panel-surface animate-rise overflow-x-auto">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-line">
@@ -223,20 +223,20 @@ function LeadsInner() {
                 [
                   ["Client", ""],
                   ["Unit", ""],
-                  ["Source", "hidden md:table-cell"],
+                  ["Source", "hidden lg:table-cell"],
                   ["Location", "hidden xl:table-cell"],
                   ["Project", "hidden xl:table-cell"],
                   ["Type", ""],
-                  ["Stage", "hidden sm:table-cell"],
+                  ["Stage", "hidden sm:table-cell md:hidden lg:table-cell"],
                   ["Owner", "hidden xl:table-cell"],
-                  ["Timeline", "hidden sm:table-cell"],
+                  ["Timeline", "hidden sm:table-cell md:hidden lg:table-cell"],
                   ["", ""],
                 ] as const
               ).map(([h, visibility], i) => (
                 <th
                   key={i}
                   className={clsx(
-                    "label whitespace-nowrap px-3 py-3 font-normal tracking-[0.12em] text-fg-muted uppercase",
+                    "label whitespace-nowrap px-2 py-3 font-normal sm:px-3 tracking-[0.12em] text-fg-muted uppercase",
                     visibility,
                   )}
                 >
@@ -256,11 +256,15 @@ function LeadsInner() {
                   onClick={() => setDetailId(l.id)}
                   className="cursor-pointer border-b border-line transition last:border-b-0 hover:bg-surface-hover"
                 >
-                  <td className="whitespace-nowrap px-3 py-3.5">
-                    <p className="label text-fg">{l.name}</p>
-                    <p className="metric mt-0.5 text-fg-dim">{l.phone}</p>
+                  <td className="whitespace-nowrap px-2 py-3.5 sm:px-3">
+                    <p className="label max-w-[120px] truncate text-fg sm:max-w-[160px] lg:max-w-[200px]">
+                      {l.name}
+                    </p>
+                    <p className="metric mt-0.5 max-w-[120px] truncate text-fg-dim sm:max-w-[160px] lg:max-w-[200px]">
+                      {l.phone}
+                    </p>
                   </td>
-                  <td className="px-3 py-3.5">
+                  <td className="px-2 py-3.5 sm:px-3">
                     <span
                       className={clsx(
                         "metric border px-1.5 py-0.5",
@@ -272,28 +276,28 @@ function LeadsInner() {
                       {l.businessUnit}
                     </span>
                   </td>
-                  <td className="label hidden whitespace-nowrap px-3 py-3.5 text-fg-muted md:table-cell">
+                  <td className="label hidden whitespace-nowrap px-2 py-3.5 sm:px-3 text-fg-muted lg:table-cell">
                     {l.source}
                   </td>
-                  <td className="label hidden whitespace-nowrap px-3 py-3.5 text-fg-muted xl:table-cell">
+                  <td className="label hidden whitespace-nowrap px-2 py-3.5 sm:px-3 text-fg-muted xl:table-cell">
                     {l.territory}
                   </td>
-                  <td className="label hidden whitespace-nowrap px-3 py-3.5 capitalize text-fg-muted xl:table-cell">
+                  <td className="label hidden whitespace-nowrap px-2 py-3.5 sm:px-3 capitalize text-fg-muted xl:table-cell">
                     {l.projectType}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3.5">
+                  <td className="whitespace-nowrap px-2 py-3.5 sm:px-3">
                     <QualBadge q={l.qualification} />
                   </td>
-                  <td className="label hidden whitespace-nowrap px-3 py-3.5 text-fg-muted sm:table-cell">
+                  <td className="label hidden whitespace-nowrap px-2 py-3.5 sm:px-3 text-fg-muted sm:table-cell md:hidden lg:table-cell">
                     {stageLabel(l.stage)}
                   </td>
-                  <td className="label hidden whitespace-nowrap px-3 py-3.5 text-fg-muted xl:table-cell">
+                  <td className="label hidden whitespace-nowrap px-2 py-3.5 sm:px-3 text-fg-muted xl:table-cell">
                     {owner}
                   </td>
-                  <td className="metric hidden whitespace-nowrap px-3 py-3.5 text-fg-dim sm:table-cell">
+                  <td className="metric hidden whitespace-nowrap px-2 py-3.5 sm:px-3 text-fg-dim sm:table-cell md:hidden lg:table-cell">
                     {relativeAge(l.capturedAt)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3.5">
+                  <td className="whitespace-nowrap px-2 py-3.5 sm:px-3">
                     <div className="flex justify-end gap-1.5">
                       <button
                         type="button"

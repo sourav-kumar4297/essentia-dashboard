@@ -410,7 +410,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div
         className={clsx(
-          "flex min-h-screen flex-1 flex-col transition-[padding] duration-200 ease-out",
+          "flex min-h-screen min-w-0 flex-1 flex-col transition-[padding] duration-200 ease-out",
           collapsed ? "md:pl-[72px]" : "md:pl-[268px]",
         )}
       >
@@ -455,8 +455,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="shell-main flex-1 px-4 py-8 md:px-10 md:py-10">
-          <div className="mx-auto max-w-5xl">{children}</div>
+        <main className="shell-main min-w-0 flex-1 px-4 py-8 md:px-10 md:py-10">
+          <div className="mx-auto min-w-0 max-w-5xl">{children}</div>
         </main>
       </div>
     </div>
