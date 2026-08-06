@@ -25,9 +25,8 @@ import {
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
-import { logout } from "@/lib/auth";
-import { usePortal } from "@/lib/store";
-import { useProfile } from "@/lib/profile";
+import { useAuth } from "@/lib/auth-context";
+import { useLeadTotal } from "@/lib/use-bd-leads";
 import { useTheme } from "@/lib/theme";
 
 const COLLAPSE_KEY = "essentia_sidebar_collapsed_v1";
@@ -118,14 +117,23 @@ const NAV = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { leads } = usePortal();
-  const { profile } = useProfile();
+  const { total: leadTotal } = useLeadTotal();
+  const { user, logout } = useAuth();
   const { theme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const logoVariant = theme === "dark" ? "white" : "espresso";
-  const initial = (profile.name.trim()[0] ?? "A").toUpperCase();
+  const displayName = user?.name ?? "User";
+  const displayEmail = user?.email ?? "";
+  const initial = (displayName.trim()[0] ?? "A").toUpperCase();
+  const roleLabel = user?.role ?? "MEMBER";
+  const wide =
+    pathname.startsWith("/leads") ||
+    pathname.startsWith("/board") ||
+    pathname.startsWith("/pipeline") ||
+    pathname.startsWith("/channels") ||
+    pathname.startsWith("/proposals");
 
   useEffect(() => {
     setProfileMenuOpen(false);
@@ -213,19 +221,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <ul className="space-y-0.5">
                 {section.items.map((item) => {
                   const active =
-                    pathname === item.href ||
-                    pathname.startsWith(`${item.href}/`);
+                    item.href === "/pipeline"
+                      ? pathname === "/pipeline"
+                      : pathname === item.href ||
+                        pathname.startsWith(`${item.href}/`);
                   const Icon = item.icon;
                   const leadCount =
-                    item.href === "/leads" ? leads.length : null;
+                    item.href === "/leads" ? leadTotal : null;
                   return (
                     <li key={item.href}>
                       <Link
                         href={item.href}
-                        onClick={onNavigate}
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          onNavigate?.();
+                        }}
                         title={compact ? item.label : undefined}
                         className={clsx(
-                          "nav-link flex items-center transition",
+                          "nav-link relative z-10 flex items-center transition",
                           compact
                             ? "justify-center px-1 py-2.5"
                             : "gap-3 px-2.5 py-2.5",
@@ -270,7 +283,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div
           className={clsx(
-            "shrink-0 space-y-2 border-t border-line",
+            "relative z-20 shrink-0 space-y-2 border-t border-line bg-sidebar",
             compact ? "p-2" : "p-3",
           )}
         >
@@ -288,57 +301,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="relative">
             {profileMenuOpen && (
-              <>
+              <div className="absolute bottom-[calc(100%+8px)] left-0 z-50 w-full min-w-[200px] max-w-[240px] border border-line bg-bg shadow-xl">
+                <Link
+                  href="/profile"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    onNavigate?.();
+                  }}
+                  className="label flex items-center gap-2.5 px-3.5 py-2.5 text-fg transition hover:bg-surface-hover"
+                >
+                  <UserRound className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  Edit profile
+                </Link>
+                <Link
+                  href="/settings"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    onNavigate?.();
+                  }}
+                  className="label flex items-center gap-2.5 px-3.5 py-2.5 text-fg transition hover:bg-surface-hover"
+                >
+                  <Settings className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  Settings
+                </Link>
                 <button
                   type="button"
-                  aria-label="Close profile menu"
-                  className="fixed inset-0 z-10 cursor-default"
-                  onClick={() => setProfileMenuOpen(false)}
-                />
-                <div className="absolute bottom-[calc(100%+8px)] left-0 z-20 w-52 border border-line bg-bg shadow-xl">
-                  <Link
-                    href="/profile"
-                    onClick={() => {
-                      setProfileMenuOpen(false);
-                      onNavigate?.();
-                    }}
-                    className="label flex items-center gap-2.5 px-3.5 py-2.5 text-fg transition hover:bg-surface-hover"
-                  >
-                    <UserRound className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Edit profile
-                  </Link>
-                  <Link
-                    href="/settings"
-                    onClick={() => {
-                      setProfileMenuOpen(false);
-                      onNavigate?.();
-                    }}
-                    className="label flex items-center gap-2.5 px-3.5 py-2.5 text-fg transition hover:bg-surface-hover"
-                  >
-                    <Settings className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Settings
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProfileMenuOpen(false);
-                      logout();
-                      router.replace("/login");
-                    }}
-                    className="label flex w-full items-center gap-2.5 border-t border-line px-3.5 py-2.5 text-fg transition hover:bg-surface-hover"
-                  >
-                    <LogOut className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    Sign out
-                  </button>
-                </div>
-              </>
+                  onClick={async () => {
+                    setProfileMenuOpen(false);
+                    await logout();
+                    router.replace("/login");
+                  }}
+                  className="label flex w-full items-center gap-2.5 border-t border-line px-3.5 py-2.5 text-fg transition hover:bg-surface-hover"
+                >
+                  <LogOut className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  Sign out
+                </button>
+              </div>
             )}
 
             <button
               type="button"
               onClick={() => setProfileMenuOpen((v) => !v)}
               aria-label="Account menu"
-              title={compact ? profile.name : undefined}
+              title={compact ? displayName : undefined}
               className={clsx(
                 "flex w-full items-center transition",
                 compact
@@ -353,10 +358,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <>
                   <span className="min-w-0 flex-1 text-left">
                     <span className="label block truncate text-fg">
-                      {profile.name}
+                      {displayName}
                     </span>
                     <span className="metric block truncate text-fg-dim">
-                      {profile.email || profile.title}
+                      {roleLabel} · {displayEmail}
                     </span>
                   </span>
                   <ChevronsUpDown
@@ -374,13 +379,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-bg text-fg">
+      {profileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Close profile menu"
+          className="fixed inset-0 z-[35] cursor-default"
+          onClick={() => setProfileMenuOpen(false)}
+        />
+      )}
+
       <aside
         className={clsx(
-          "no-print fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-line bg-sidebar transition-[width] duration-200 ease-out md:flex",
+          "no-print fixed inset-y-0 left-0 z-40 hidden h-screen flex-col overflow-hidden border-r border-line bg-sidebar transition-[width] duration-200 ease-out md:flex",
           collapsed ? "w-[72px]" : "w-[268px]",
         )}
       >
-        {navBody({ compact: collapsed })}
+        <div className="flex h-full min-h-0 flex-col">{navBody({ compact: collapsed })}</div>
       </aside>
 
       {mobileOpen && (
@@ -391,7 +405,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label="Close menu"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col border-r border-line bg-sidebar shadow-2xl">
+          <aside className="absolute inset-y-0 left-0 flex h-full w-[280px] max-w-[85vw] flex-col overflow-hidden border-r border-line bg-sidebar shadow-2xl">
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
@@ -400,10 +414,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <X className="h-5 w-5" />
             </button>
-            {navBody({
-              compact: false,
-              onNavigate: () => setMobileOpen(false),
-            })}
+            <div className="flex h-full min-h-0 flex-col">
+              {navBody({
+                compact: false,
+                onNavigate: () => setMobileOpen(false),
+              })}
+            </div>
           </aside>
         </div>
       )}
@@ -455,8 +471,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="shell-main min-w-0 flex-1 px-4 py-8 md:px-10 md:py-10">
-          <div className="mx-auto min-w-0 max-w-5xl">{children}</div>
+        <main
+          className={clsx(
+            "shell-main min-w-0 flex-1 py-6 md:py-8",
+            wide ? "px-3 md:px-4 lg:px-5" : "px-4 md:px-6 lg:px-8",
+          )}
+        >
+          <div
+            className={clsx(
+              "mx-auto min-w-0",
+              wide ? "max-w-none w-full" : "max-w-5xl",
+            )}
+          >
+            {children}
+          </div>
         </main>
       </div>
     </div>

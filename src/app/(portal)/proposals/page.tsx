@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
+import {
+  Plus,
+  Printer,
+  RotateCcw,
+  Save,
+  Trash2,
+} from "lucide-react";
 import {
   Button,
   Field,
@@ -11,494 +16,937 @@ import {
   Panel,
   inputClass,
 } from "@/components/ui";
-import { SuspenseWrap } from "@/components/SuspenseWrap";
-import { usePortal } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import {
-  RATE_CARD,
-  canSelectService,
-  calculateProposal,
+  PROPOSAL_STORAGE_KEY,
+  calcProposal,
+  createBlankCommercialTemplate,
+  createLaburnumTemplate,
   formatINR,
-  FRIENDS_FAMILY_DEFAULT,
-  PRIVILEGED_DEFAULT,
-} from "@/lib/rates";
-import { DESIGN_MANAGEMENT_LINE } from "@/lib/mock-data";
-import type { DesignServiceId } from "@/lib/types";
+  type FeeProposalDoc,
+  type ProposalServiceLine,
+} from "@/lib/proposal-template";
 import { clsx } from "clsx";
 
-export default function ProposalsPage() {
-  return (
-    <SuspenseWrap>
-      <ProposalsInner />
-    </SuspenseWrap>
-  );
+function loadSaved(): FeeProposalDoc[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(PROPOSAL_STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as FeeProposalDoc[];
+  } catch {
+    return [];
+  }
 }
 
-function ProposalsInner() {
-  const search = useSearchParams();
-  const {
-    leads,
-    consultations,
-    proposals,
-    upsertProposal,
-    markProposalSent,
-    acceptProposal,
-  } = usePortal();
+function persistAll(list: FeeProposalDoc[]) {
+  localStorage.setItem(PROPOSAL_STORAGE_KEY, JSON.stringify(list));
+}
+
+export default function ProposalsPage() {
   const { theme } = useTheme();
   const logoSrc = theme === "light" ? "/logo-espresso.png" : "/logo-white.png";
+  const printLogo = "/logo-espresso.png";
 
-  const leadId = search.get("lead") ?? leads[0]?.id ?? "";
-  const lead = leads.find((l) => l.id === leadId);
-  const consultation = consultations[leadId];
-  const history = proposals.filter((p) => p.leadId === leadId);
-
-  const [selected, setSelected] = useState<DesignServiceId[]>([
-    "space_with_facade",
-  ]);
-  const [sqft, setSqft] = useState(consultation?.sqft ?? 4500);
-  const [renderQty, setRenderQty] = useState(2);
-  const [privileged, setPrivileged] = useState(false);
-  const [friendsFamily, setFriendsFamily] = useState(false);
-  const [advisorNotes, setAdvisorNotes] = useState("");
-  const [commissionNote, setCommissionNote] = useState("");
-  const [proposalId, setProposalId] = useState<string | null>(null);
-  const [view, setView] = useState<"client" | "internal">("client");
-  const [warning, setWarning] = useState("");
+  const [doc, setDoc] = useState<FeeProposalDoc>(() => createLaburnumTemplate());
+  const [saved, setSaved] = useState<FeeProposalDoc[]>([]);
   const [toast, setToast] = useState("");
+  const [tab, setTab] = useState<"edit" | "preview">("edit");
 
   useEffect(() => {
-    if (consultation?.sqft) setSqft(consultation.sqft);
-  }, [consultation]);
+    setSaved(loadSaved());
+  }, []);
 
-  const calc = useMemo(
-    () =>
-      calculateProposal(selected, sqft, renderQty, privileged, friendsFamily),
-    [selected, sqft, renderQty, privileged, friendsFamily],
-  );
+  const calc = useMemo(() => calcProposal(doc), [doc]);
 
-  function toggleService(id: DesignServiceId) {
-    const isOn = selected.includes(id);
-    if (isOn) {
-      const next = selected.filter((s) => s !== id);
-      // if removing scope1, also drop dependent scopes
-      const stillScope1 = next.some(
-        (s) => RATE_CARD.find((r) => r.id === s)?.isScope1,
-      );
-      setSelected(
-        stillScope1
-          ? next
-          : next.filter((s) => !RATE_CARD.find((r) => r.id === s)?.requiresScope1),
-      );
-      setWarning("");
-      return;
-    }
-    const check = canSelectService(id, selected);
-    if (!check.ok) {
-      setWarning(check.warning ?? "Cannot select");
-      return;
-    }
-    setWarning("");
-    let next = [...selected, id];
-    if (id === "space_with_facade") {
-      next = next.filter((s) => s !== "space_without_facade");
-    }
-    if (id === "space_without_facade") {
-      next = next.filter((s) => s !== "space_with_facade");
-    }
-    setSelected(next);
+  function patch(partial: Partial<FeeProposalDoc>) {
+    setDoc((d) => ({ ...d, ...partial, updatedAt: new Date().toISOString() }));
   }
 
-  function persist(status?: "draft" | "sent") {
-    const id = upsertProposal({
-      id: proposalId ?? undefined,
-      leadId,
-      selected,
-      sqft,
-      renderQty,
-      privileged,
-      friendsFamily,
-      advisorNotes,
-      commissionNote,
-      status,
-    });
-    setProposalId(id);
-    return id;
-  }
-
-  function copySummary() {
-    const text = [
-      `Design Fee Proposal — ${lead?.name}`,
-      ...calc.lines.map(
-        (l) =>
-          `${RATE_CARD.find((r) => r.id === l.serviceId)?.name}: ${formatINR(l.amount)}`,
+  function updateService(id: string, partial: Partial<ProposalServiceLine>) {
+    setDoc((d) => ({
+      ...d,
+      updatedAt: new Date().toISOString(),
+      services: d.services.map((s) =>
+        s.id === id ? { ...s, ...partial } : s,
       ),
-      `Total: ${formatINR(calc.total)}`,
-    ].join("\n");
-    navigator.clipboard.writeText(text);
-    setToast("Summary copied to clipboard.");
+    }));
+  }
+
+  function applyAreaToAll(area: number) {
+    setDoc((d) => ({
+      ...d,
+      updatedAt: new Date().toISOString(),
+      officeAreaLabel: `${area.toLocaleString("en-IN")} sq.ft.`,
+      services: d.services.map((s) => ({ ...s, areaSqft: area })),
+    }));
+  }
+
+  function saveDraft() {
+    const next = [...saved.filter((s) => s.id !== doc.id), { ...doc }];
+    next.sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+    setSaved(next);
+    persistAll(next);
+    setToast("Proposal saved on this browser.");
+  }
+
+  function loadDraft(id: string) {
+    const found = saved.find((s) => s.id === id);
+    if (found) {
+      setDoc(found);
+      setToast("Draft loaded.");
+      setTab("edit");
+    }
+  }
+
+  function deleteDraft(id: string) {
+    const next = saved.filter((s) => s.id !== id);
+    setSaved(next);
+    persistAll(next);
+    setToast("Draft deleted.");
+  }
+
+  function addService() {
+    const area = doc.services[0]?.areaSqft ?? 10000;
+    setDoc((d) => ({
+      ...d,
+      services: [
+        ...d.services,
+        {
+          id: `svc_${Math.random().toString(36).slice(2, 9)}`,
+          name: "New service line",
+          description: "Describe the scope for this line.",
+          enabled: true,
+          areaSqft: area,
+          standardRate: 200,
+          privilegedRate: 100,
+        },
+      ],
+    }));
   }
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
-        eyebrow="04 · Centrepiece"
-        title="Design Fee Proposal"
-        description="Build the fee for this sample family — live totals, Scope 1 sequencing, discounts, client vs internal view."
+        eyebrow="Tools"
+        title="Fee Configurator"
+        description="Build an editable design-fee proposal from the essentia commercial template. Team can adjust client details, scopes, rates, privilege, and payment schedule — then print to PDF."
         actions={
           <div className="no-print flex flex-wrap gap-2">
             <Button
-              variant={view === "client" ? "primary" : "secondary"}
-              onClick={() => setView("client")}
+              variant={tab === "edit" ? "primary" : "secondary"}
+              onClick={() => setTab("edit")}
             >
-              Client view
+              Edit
             </Button>
             <Button
-              variant={view === "internal" ? "primary" : "secondary"}
-              onClick={() => setView("internal")}
+              variant={tab === "preview" ? "primary" : "secondary"}
+              onClick={() => setTab("preview")}
             >
-              Internal view
+              Preview
+            </Button>
+            <Button variant="secondary" onClick={saveDraft}>
+              <Save className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+              Save draft
+            </Button>
+            <Button variant="secondary" onClick={() => window.print()}>
+              <Printer className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+              Print / PDF
             </Button>
           </div>
         }
       />
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.15fr]">
-        <div className="no-print space-y-6">
-          <Panel title="Build" className="animate-rise">
-            <p className="mb-4 text-sm text-fg-muted">
-              Working with <strong className="text-fg">{lead?.name}</strong>
-            </p>
+      {toast && (
+        <p className="no-print mb-4 border border-line bg-surface px-3 py-2 label text-fg">
+          {toast}
+          <button
+            type="button"
+            className="ml-3 text-fg-muted hover:text-fg"
+            onClick={() => setToast("")}
+          >
+            Dismiss
+          </button>
+        </p>
+      )}
 
-            {lead?.priorEngagement && (
-              <div className="mt-4 rounded-sm border border-line-strong bg-surface px-3 py-3 text-sm text-fg">
-                <strong className="font-bold">Returning client recognition.</strong>{" "}
-                This family has a prior engagement — confirm privileged context
-                before presenting numbers.
-              </div>
-            )}
+      <div className="no-print mb-6 flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setDoc(createLaburnumTemplate());
+            setToast("Loaded Laburnum sample template.");
+          }}
+        >
+          <RotateCcw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+          Load Laburnum sample
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setDoc(createBlankCommercialTemplate());
+            setToast("Started blank commercial proposal.");
+          }}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+          New blank proposal
+        </Button>
+      </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Field label="Square footage">
-                <input
-                  type="number"
-                  className={inputClass}
-                  value={sqft}
-                  min={500}
-                  onChange={(e) => setSqft(Number(e.target.value))}
-                />
-              </Field>
-              <Field label="Extra render views">
-                <input
-                  type="number"
-                  className={inputClass}
-                  value={renderQty}
-                  min={1}
-                  onChange={(e) => setRenderQty(Number(e.target.value))}
-                />
-              </Field>
-            </div>
-
-            <div className="mt-5 space-y-2">
-              <p className="font-body text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted">
-                Scope selection
-              </p>
-              {RATE_CARD.map((item) => {
-                const on = selected.includes(item.id);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => toggleService(item.id)}
-                    className={clsx(
-                      "flex w-full items-start justify-between gap-3 rounded-sm border px-3 py-3 text-left transition",
-                      on
-                        ? "border-white/40 bg-surface"
-                        : "border-line hover:border-line-strong",
-                    )}
-                  >
-                    <div>
-                      <p className="font-body text-sm font-bold text-fg">
-                        {item.name}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-fg-muted">
-                        {item.covers}
-                      </p>
-                    </div>
-                    <span className="shrink-0 font-body text-xs font-bold text-fg-muted">
-                      {item.rateLabel}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {warning && (
-              <p className="mt-3 rounded-sm border border-error/40 bg-hot/5 px-3 py-2 text-sm text-\[\#ff6b6b\]">
-                {warning}
-              </p>
-            )}
-
-            <div className="mt-5 flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={privileged}
-                  onChange={(e) => setPrivileged(e.target.checked)}
-                />
-                Privileged pricing (−{PRIVILEGED_DEFAULT}%)
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={friendsFamily}
-                  onChange={(e) => setFriendsFamily(e.target.checked)}
-                />
-                Friends & Family (−{FRIENDS_FAMILY_DEFAULT}%)
-              </label>
-            </div>
-
-            <div className="mt-4 sticky bottom-4 border border-line bg-surface px-4 py-4 text-fg shadow-lg">
-              <p className="label tracking-[0.16em] text-fg-muted uppercase">
-                Live fee total
-              </p>
-              <p className="heading mt-1 text-[28px]">
-                {formatINR(calc.total)}
-              </p>
-              {calc.discountPercent > 0 && (
-                <p className="text-xs text-fg/60">
-                  Subtotal {formatINR(calc.subtotal)} · {calc.discountPercent}%
-                  adjustment
-                </p>
-              )}
-              <p className="mt-1 text-[11px] text-fg/50">
-                PMC fee quoted separately at sign-up — not bundled.
-              </p>
-            </div>
-          </Panel>
-
-          <Panel title="Session history" className="animate-rise delay-1">
-            {history.length === 0 ? (
-              <p className="text-sm text-fg-muted">No proposals yet for this family.</p>
-            ) : (
-              <ul className="space-y-2">
-                {history.map((p) => (
-                  <li key={p.id}>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between rounded-sm border border-line px-3 py-2 text-left text-sm hover:border-white/40"
-                      onClick={() => {
-                        setProposalId(p.id);
-                        setSelected(p.lines.map((l) => l.serviceId));
-                        setPrivileged(p.privilegedPricing);
-                        setFriendsFamily(p.friendsFamily);
-                        setAdvisorNotes(p.advisorNotes);
-                        setCommissionNote(p.commissionNote);
-                        const sq = p.lines.find((l) => l.sqft)?.sqft;
-                        if (sq) setSqft(sq);
-                      }}
-                    >
-                      <span>
-                        {p.id} · {p.status}
-                      </span>
-                      <span className="font-bold">{formatINR(p.total)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-        </div>
-
-        <div className="space-y-4">
-          <div className="no-print flex flex-wrap gap-2 animate-rise">
-            <Button
-              onClick={() => {
-                persist("draft");
-                setToast("Proposal saved as draft.");
-              }}
-            >
-              Save
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                const id = persist("draft");
-                markProposalSent(id);
-                setToast("Proposal marked sent & emailed (demo).");
-              }}
-            >
-              Email client
-            </Button>
-            <Button variant="secondary" onClick={() => window.print()}>
-              Print / PDF
-            </Button>
-            <Button variant="secondary" onClick={copySummary}>
-              Copy summary
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                const id = persist("draft");
-                const orderId = acceptProposal(id);
-                setToast(`Accepted — Order ${orderId} created.`);
-              }}
-            >
-              Mark accepted
-            </Button>
-            <Link href="/closing">
-              <Button variant="ghost">Go to Closing →</Button>
-            </Link>
-          </div>
-
-          {toast && (
-            <p className="no-print rounded-sm border border-line bg-surface px-3 py-2 text-sm text-fg">
-              {toast}
-            </p>
-          )}
-
-          {view === "client" ? (
-            <Panel className="animate-rise delay-1 !p-0 overflow-hidden">
-              <article className="bg-surface px-8 py-10 md:px-12">
-                <header className="mb-8 flex items-end justify-between border-b border-line pb-5">
-                  <Image
-                    src={logoSrc}
-                    alt="essentia"
-                    width={150}
-                    height={36}
-                  />
-                  <p className="font-body text-[10px] font-bold uppercase tracking-[0.2em] text-fg-muted">
-                    Design Fee Proposal
-                  </p>
-                </header>
-
-                <p className="text-xs text-fg-muted">Prepared for</p>
-                <h2 className="heading text-4xl text-fg">
-                  {lead?.name}
-                </h2>
-                <p className="mt-1 text-sm text-fg-muted">
-                  {consultation?.location ?? lead?.location} ·{" "}
-                  {sqft.toLocaleString("en-IN")} sqft · {lead?.projectType}
-                </p>
-
-                <blockquote className="mt-6 border-l-2 border-white/40 pl-4 font-body text-sm leading-relaxed text-fg">
-                  {DESIGN_MANAGEMENT_LINE.replace(
-                    "your home",
-                    lead?.projectType === "residential"
-                      ? "your home"
-                      : "your project",
-                  )}
-                </blockquote>
-
-                <table className="mt-8 w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-line font-body text-[10px] font-bold uppercase tracking-wider text-fg-muted">
-                      <th className="py-2">Service</th>
-                      <th className="py-2">Rate</th>
-                      <th className="py-2 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {calc.lines.map((line) => {
-                      const item = RATE_CARD.find(
-                        (r) => r.id === line.serviceId,
-                      )!;
-                      return (
-                        <tr
-                          key={line.serviceId}
-                          className="border-b border-line"
-                        >
-                          <td className="py-3 pr-2">
-                            <p className="font-bold text-fg">
-                              {item.name}
-                            </p>
-                            <p className="text-[11px] text-fg-muted">
-                              {item.covers}
-                            </p>
-                          </td>
-                          <td className="py-3 text-fg-muted">{item.rateLabel}</td>
-                          <td className="py-3 text-right font-bold">
-                            {formatINR(line.amount)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                <div className="mt-6 flex justify-end">
-                  <div className="text-right">
-                    {calc.discountPercent > 0 && (
-                      <p className="text-sm text-fg-muted">
-                        Subtotal {formatINR(calc.subtotal)}
-                        <br />
-                        Adjustment −{calc.discountPercent}%
-                      </p>
-                    )}
-                    <p className="heading mt-1 text-4xl text-fg">
-                      {formatINR(calc.total)}
-                    </p>
-                    <p className="mt-1 text-[11px] text-fg-muted">
-                      Design fee · PMC quoted separately at engagement
-                    </p>
-                  </div>
-                </div>
-
-                <footer className="mt-10 flex items-center justify-between border-t border-line pt-5">
-                  <Image
-                    src={logoSrc}
-                    alt="essentia"
-                    width={110}
-                    height={26}
-                  />
-                  <p className="label text-fg-muted">Every client returns</p>
-                </footer>
-              </article>
-            </Panel>
-          ) : (
-            <Panel title="Internal view" className="animate-rise delay-1 no-print">
-              <p className="mb-4 rounded-sm border border-line bg-surface px-3 py-2 text-xs text-fg-muted">
-                Never exportable to the client. Commission, notes, and full
-                session history only.
-              </p>
-              <Field label="Advisor notes">
-                <textarea
-                  className={`${inputClass} min-h-[80px]`}
-                  value={advisorNotes}
-                  onChange={(e) => setAdvisorNotes(e.target.value)}
-                />
-              </Field>
-              <div className="mt-3">
-                <Field label="Commission note">
+      <div
+        className={clsx(
+          "grid gap-6",
+          tab === "edit" ? "xl:grid-cols-[1fr_1.05fr]" : "",
+        )}
+      >
+        {tab === "edit" && (
+          <div className="no-print space-y-5">
+            <Panel title="Client & cover">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Client name">
                   <input
                     className={inputClass}
-                    value={commissionNote}
-                    onChange={(e) => setCommissionNote(e.target.value)}
-                    placeholder="Internal commission calculation note"
+                    value={doc.clientName}
+                    onChange={(e) => patch({ clientName: e.target.value })}
+                  />
+                </Field>
+                <Field label="Company">
+                  <input
+                    className={inputClass}
+                    value={doc.clientCompany}
+                    onChange={(e) => patch({ clientCompany: e.target.value })}
+                  />
+                </Field>
+                <Field label="Point of contact">
+                  <input
+                    className={inputClass}
+                    value={doc.pointOfContact}
+                    onChange={(e) => patch({ pointOfContact: e.target.value })}
+                  />
+                </Field>
+                <Field label="Referred by">
+                  <input
+                    className={inputClass}
+                    value={doc.referredBy}
+                    onChange={(e) => patch({ referredBy: e.target.value })}
+                  />
+                </Field>
+                <Field label="Office / project address">
+                  <input
+                    className={inputClass}
+                    value={doc.officeAddress}
+                    onChange={(e) => patch({ officeAddress: e.target.value })}
+                  />
+                </Field>
+                <Field label="Date label">
+                  <input
+                    className={inputClass}
+                    value={doc.dateLabel}
+                    onChange={(e) => patch({ dateLabel: e.target.value })}
+                  />
+                </Field>
+                <Field label="Cover eyebrow">
+                  <input
+                    className={inputClass}
+                    value={doc.eyebrow}
+                    onChange={(e) => patch({ eyebrow: e.target.value })}
+                  />
+                </Field>
+                <Field label="Prepared by (advisor)">
+                  <input
+                    className={inputClass}
+                    value={doc.preparedByName}
+                    onChange={(e) => patch({ preparedByName: e.target.value })}
                   />
                 </Field>
               </div>
-              <dl className="mt-5 grid gap-2 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-fg-muted">Subtotal</dt>
-                  <dd>{formatINR(calc.subtotal)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-fg-muted">Discount stack</dt>
-                  <dd>{calc.discountPercent}%</dd>
-                </div>
-                <div className="flex justify-between font-bold">
-                  <dt>Client total</dt>
-                  <dd>{formatINR(calc.total)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-fg-muted">Est. advisory pool (demo 4%)</dt>
-                  <dd>{formatINR(Math.round(calc.total * 0.04))}</dd>
-                </div>
-              </dl>
+              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <Field label="Apply area (sq.ft.) to all service lines">
+                  <input
+                    type="number"
+                    className={inputClass}
+                    min={100}
+                    defaultValue={doc.services[0]?.areaSqft ?? 10000}
+                    onBlur={(e) => {
+                      const n = Number(e.target.value);
+                      if (n > 0) applyAreaToAll(n);
+                    }}
+                  />
+                </Field>
+                <label className="flex items-end gap-2 pb-2">
+                  <input
+                    type="checkbox"
+                    checked={doc.usePrivileged}
+                    onChange={(e) => patch({ usePrivileged: e.target.checked })}
+                  />
+                  <span className="label text-fg">Use privileged rates</span>
+                </label>
+              </div>
             </Panel>
-          )}
+
+            <Panel title="Design investment lines">
+              <div className="space-y-4">
+                {doc.services.map((s) => (
+                  <div key={s.id} className="border border-line p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={s.enabled}
+                          onChange={(e) =>
+                            updateService(s.id, { enabled: e.target.checked })
+                          }
+                        />
+                        <span className="label text-fg">Include</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="text-fg-dim hover:text-error"
+                        onClick={() =>
+                          setDoc((d) => ({
+                            ...d,
+                            services: d.services.filter((x) => x.id !== s.id),
+                          }))
+                        }
+                        aria-label="Remove line"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                    </div>
+                    <Field label="Service name">
+                      <input
+                        className={inputClass}
+                        value={s.name}
+                        onChange={(e) =>
+                          updateService(s.id, { name: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <div className="mt-2">
+                      <Field label="Description">
+                        <textarea
+                          rows={3}
+                          className={clsx(inputClass, "resize-none")}
+                          value={s.description}
+                          onChange={(e) =>
+                            updateService(s.id, {
+                              description: e.target.value,
+                            })
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      <Field label="Area sq.ft.">
+                        <input
+                          type="number"
+                          className={inputClass}
+                          value={s.areaSqft}
+                          onChange={(e) =>
+                            updateService(s.id, {
+                              areaSqft: Number(e.target.value) || 0,
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="Standard ₹/sq.ft.">
+                        <input
+                          type="number"
+                          className={inputClass}
+                          value={s.standardRate}
+                          onChange={(e) =>
+                            updateService(s.id, {
+                              standardRate: Number(e.target.value) || 0,
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="Privileged ₹/sq.ft.">
+                        <input
+                          type="number"
+                          className={inputClass}
+                          value={s.privilegedRate}
+                          onChange={(e) =>
+                            updateService(s.id, {
+                              privilegedRate: Number(e.target.value) || 0,
+                            })
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <p className="metric mt-2 text-fg-muted">
+                      Line total:{" "}
+                      <span className="text-fg">
+                        {formatINR(
+                          s.areaSqft *
+                            (doc.usePrivileged
+                              ? s.privilegedRate
+                              : s.standardRate),
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                ))}
+                <Button variant="secondary" onClick={addService}>
+                  <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+                  Add service line
+                </Button>
+              </div>
+
+              <div className="mt-5 border border-line bg-bg px-4 py-4">
+                <p className="label text-fg-muted">Live totals</p>
+                <p className="heading mt-1 text-[28px]">
+                  {formatINR(calc.total)}
+                </p>
+                <p className="metric mt-1 text-fg-dim">
+                  Standard {formatINR(calc.standardTotal)}
+                  {calc.savings > 0
+                    ? ` · Save ${formatINR(calc.savings)}`
+                    : ""}
+                </p>
+              </div>
+            </Panel>
+
+            <Panel title="Privilege note">
+              <Field label="Badge">
+                <input
+                  className={inputClass}
+                  value={doc.privilegeBadge}
+                  onChange={(e) => patch({ privilegeBadge: e.target.value })}
+                />
+              </Field>
+              <div className="mt-2">
+                <Field label="Title">
+                  <input
+                    className={inputClass}
+                    value={doc.privilegeTitle}
+                    onChange={(e) => patch({ privilegeTitle: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="mt-2">
+                <Field label="Body">
+                  <textarea
+                    rows={4}
+                    className={clsx(inputClass, "resize-none")}
+                    value={doc.privilegeBody}
+                    onChange={(e) => patch({ privilegeBody: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="mt-2">
+                <Field label="Validity (days)">
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={doc.privilegeValidityDays}
+                    onChange={(e) =>
+                      patch({
+                        privilegeValidityDays: Number(e.target.value) || 30,
+                      })
+                    }
+                  />
+                </Field>
+              </div>
+            </Panel>
+
+            <Panel title="Narrative sections">
+              <Field label="Note — lead">
+                <textarea
+                  rows={2}
+                  className={clsx(inputClass, "resize-none")}
+                  value={doc.noteLead}
+                  onChange={(e) => patch({ noteLead: e.target.value })}
+                />
+              </Field>
+              <div className="mt-2">
+                <Field label="Note — body">
+                  <textarea
+                    rows={5}
+                    className={clsx(inputClass, "resize-none")}
+                    value={doc.noteBody}
+                    onChange={(e) => patch({ noteBody: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="mt-2">
+                <Field label="Quote">
+                  <textarea
+                    rows={3}
+                    className={clsx(inputClass, "resize-none")}
+                    value={doc.quoteText}
+                    onChange={(e) => patch({ quoteText: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="mt-2">
+                <Field label="Project body">
+                  <textarea
+                    rows={5}
+                    className={clsx(inputClass, "resize-none")}
+                    value={doc.projectBody}
+                    onChange={(e) => patch({ projectBody: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="mt-2">
+                <Field label="Next steps body">
+                  <textarea
+                    rows={4}
+                    className={clsx(inputClass, "resize-none")}
+                    value={doc.nextBody}
+                    onChange={(e) => patch({ nextBody: e.target.value })}
+                  />
+                </Field>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <Field label="Included renders">
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={doc.includedRenders}
+                    onChange={(e) =>
+                      patch({ includedRenders: Number(e.target.value) || 0 })
+                    }
+                  />
+                </Field>
+                <Field label="Extra render ₹">
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={doc.extraRenderRate}
+                    onChange={(e) =>
+                      patch({ extraRenderRate: Number(e.target.value) || 0 })
+                    }
+                  />
+                </Field>
+              </div>
+            </Panel>
+
+            <Panel title="Payment milestones (%)">
+              <ul className="space-y-3">
+                {doc.milestones.map((m, idx) => (
+                  <li key={m.id} className="grid gap-2 border border-line p-3 sm:grid-cols-4">
+                    <Field label="%">
+                      <input
+                        type="number"
+                        className={inputClass}
+                        value={m.percent}
+                        onChange={(e) => {
+                          const percent = Number(e.target.value) || 0;
+                          setDoc((d) => ({
+                            ...d,
+                            milestones: d.milestones.map((x, i) =>
+                              i === idx ? { ...x, percent } : x,
+                            ),
+                          }));
+                        }}
+                      />
+                    </Field>
+                    <div className="sm:col-span-3">
+                      <Field label="Label">
+                        <input
+                          className={inputClass}
+                          value={m.label}
+                          onChange={(e) => {
+                            const label = e.target.value;
+                            setDoc((d) => ({
+                              ...d,
+                              milestones: d.milestones.map((x, i) =>
+                                i === idx ? { ...x, label } : x,
+                              ),
+                            }));
+                          }}
+                        />
+                      </Field>
+                      <div className="mt-2">
+                        <Field label="Trigger">
+                          <input
+                            className={inputClass}
+                            value={m.trigger}
+                            onChange={(e) => {
+                              const trigger = e.target.value;
+                              setDoc((d) => ({
+                                ...d,
+                                milestones: d.milestones.map((x, i) =>
+                                  i === idx ? { ...x, trigger } : x,
+                                ),
+                              }));
+                            }}
+                          />
+                        </Field>
+                      </div>
+                      <p className="metric mt-1 text-fg-dim">
+                        {formatINR(Math.round((calc.total * m.percent) / 100))}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <p className="metric mt-3 text-fg-muted">
+                Milestone % sum:{" "}
+                {doc.milestones.reduce((a, m) => a + m.percent, 0)}%
+              </p>
+            </Panel>
+
+            {saved.length > 0 && (
+              <Panel title="Saved drafts (this browser)">
+                <ul className="divide-y divide-line">
+                  {saved.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex items-center justify-between gap-2 py-2"
+                    >
+                      <button
+                        type="button"
+                        className="label text-left text-fg hover:underline"
+                        onClick={() => loadDraft(s.id)}
+                      >
+                        {s.clientCompany || s.clientName || "Untitled"} ·{" "}
+                        {new Date(s.updatedAt).toLocaleString()}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-fg-dim hover:text-error"
+                        onClick={() => deleteDraft(s.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            )}
+          </div>
+        )}
+
+        <div className={clsx(tab === "edit" ? "" : "mx-auto w-full max-w-4xl")}>
+          <ProposalPreview
+            doc={doc}
+            calc={calc}
+            logoSrc={tab === "preview" ? logoSrc : printLogo}
+          />
         </div>
       </div>
     </div>
+  );
+}
+
+function ProposalPreview({
+  doc,
+  calc,
+  logoSrc,
+}: {
+  doc: FeeProposalDoc;
+  calc: ReturnType<typeof calcProposal>;
+  logoSrc: string;
+}) {
+  return (
+    <article className="proposal-print border border-line bg-white text-[#111] shadow-sm">
+      {/* Cover */}
+      <section className="border-b border-black/10 px-8 py-10 md:px-12">
+        <div className="mb-10 flex items-start justify-between gap-4">
+          <Image src={logoSrc} alt="essentia" width={140} height={34} />
+          <p className="text-right font-body text-[10px] uppercase tracking-[0.18em] text-black/45">
+            {doc.confidentialLabel} · {doc.dateLabel}
+          </p>
+        </div>
+        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/50">
+          {doc.eyebrow}
+        </p>
+        <h1 className="mt-3 font-body text-[32px] font-light leading-tight md:text-[40px]">
+          {doc.clientCompany || "Client company"}
+        </h1>
+        <p className="mt-2 text-sm text-black/55">{doc.officeAddress}</p>
+        <h2 className="mt-8 font-body text-[22px] font-light">{doc.title}</h2>
+
+        <dl className="mt-10 grid gap-4 sm:grid-cols-2">
+          {[
+            ["CLIENT", `${doc.clientName}\n${doc.clientCompany}`],
+            ["POINT OF CONTACT", doc.pointOfContact],
+            ["OFFICE AREA", `${doc.officeAreaLabel}\n${doc.officeAddress}`],
+            ["REFERRED BY", doc.referredBy],
+          ].map(([k, v]) => (
+            <div key={k} className="border-t border-black/10 pt-3">
+              <dt className="font-body text-[10px] uppercase tracking-[0.16em] text-black/45">
+                {k}
+              </dt>
+              <dd className="mt-1 whitespace-pre-line text-sm text-black/85">
+                {v}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-10 text-xs text-black/45">{doc.partnerLine}</p>
+      </section>
+
+      {/* Note */}
+      <section className="border-b border-black/10 px-8 py-10 md:px-12">
+        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+          {doc.noteHeading}
+        </p>
+        <p className="mt-4 text-lg font-light leading-snug text-black">
+          {doc.noteLead}
+        </p>
+        <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-black/70">
+          {doc.noteBody}
+        </p>
+        <blockquote className="mt-8 border-l-2 border-black/30 pl-4">
+          <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+            {doc.quoteAttribution}
+          </p>
+          <p className="mt-2 text-sm italic leading-relaxed text-black/80">
+            “{doc.quoteText}”
+          </p>
+        </blockquote>
+      </section>
+
+      {/* Project */}
+      <section className="border-b border-black/10 px-8 py-10 md:px-12">
+        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+          {doc.projectHeading}
+        </p>
+        <p className="mt-2 text-base text-black/80">{doc.projectSub}</p>
+        <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-black/70">
+          {doc.projectBody}
+        </p>
+        <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            [doc.officeAreaLabel || "—", "OFFICE AREA"],
+            [doc.officeAddress.split("·")[0]?.trim() || "—", "LOCATION"],
+            [String(calc.lines.length), "INTEGRATED SERVICES"],
+            ["26", "YEARS OF PRACTICE"],
+          ].map(([v, l]) => (
+            <div key={l} className="border border-black/10 px-3 py-3">
+              <p className="text-sm font-medium text-black">{v}</p>
+              <p className="mt-1 font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+                {l}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Concerns */}
+      <section className="border-b border-black/10 px-8 py-10 md:px-12">
+        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+          {doc.concernsHeading}
+        </p>
+        <p className="mt-2 text-base text-black/80">{doc.concernsSub}</p>
+        <ul className="mt-6 space-y-5">
+          {doc.concerns.map((c) => (
+            <li key={c.id} className="border-t border-black/10 pt-4">
+              <p className="text-sm font-medium text-black">{c.title}</p>
+              <p className="mt-2 text-sm leading-relaxed text-black/65">
+                {c.body}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Investment */}
+      <section className="border-b border-black/10 px-8 py-10 md:px-12">
+        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+          {doc.investmentHeading}
+        </p>
+        <p className="mt-2 text-base text-black/80">{doc.investmentSub}</p>
+
+        <div className="mt-6 overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-black/15 font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+                <th className="py-2 pr-3">Service</th>
+                <th className="py-2 pr-3">Area</th>
+                <th className="py-2 pr-3">Standard</th>
+                <th className="py-2 pr-3">Privileged</th>
+                <th className="py-2 text-right">Your investment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {calc.lines.map((line) => (
+                <tr key={line.id} className="border-b border-black/10 align-top">
+                  <td className="py-4 pr-3">
+                    <p className="font-medium text-black">{line.name}</p>
+                    <p className="mt-1 text-[12px] leading-relaxed text-black/55">
+                      {line.description}
+                    </p>
+                  </td>
+                  <td className="py-4 pr-3 whitespace-nowrap text-black/70">
+                    {line.areaSqft.toLocaleString("en-IN")} sq.ft.
+                  </td>
+                  <td className="py-4 pr-3 whitespace-nowrap text-black/70">
+                    ₹{line.standardRate}/sq.ft.
+                  </td>
+                  <td className="py-4 pr-3 whitespace-nowrap text-black/70">
+                    ₹{line.privilegedRate}/sq.ft.
+                  </td>
+                  <td className="py-4 text-right font-medium text-black">
+                    {formatINR(line.investment)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {doc.usePrivileged && (
+          <div className="mt-6 border border-black/15 bg-[#f7f7f5] px-5 py-5">
+            <p className="font-body text-[10px] uppercase tracking-[0.16em] text-black/50">
+              ✦ {doc.privilegeBadge}
+            </p>
+            <p className="mt-2 text-sm font-medium text-black">
+              {doc.privilegeTitle}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-black/65">
+              {doc.privilegeBody}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
+          <div>
+            <p className="font-body text-[10px] uppercase tracking-[0.16em] text-black/45">
+              {doc.usePrivileged
+                ? "YOUR PRIVILEGED INVESTMENT"
+                : "YOUR DESIGN INVESTMENT"}
+            </p>
+            <p className="mt-1 font-body text-[36px] font-light tracking-tight text-black">
+              {formatINR(calc.total)}
+            </p>
+            {doc.usePrivileged && calc.savings > 0 && (
+              <p className="mt-1 text-sm text-black/55">
+                You save {formatINR(calc.savings)} · Valid{" "}
+                {doc.privilegeValidityDays} days · Plus applicable taxes
+              </p>
+            )}
+          </div>
+          <div className="text-right">
+            <p className="font-body text-[10px] uppercase tracking-[0.16em] text-black/45">
+              STANDARD DESIGN FEE
+            </p>
+            <p className="mt-1 text-xl text-black/70">
+              {formatINR(calc.standardTotal)}
+            </p>
+            <p className="mt-1 text-xs text-black/45">
+              At published rates · {doc.officeAreaLabel}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+          {doc.inclusions.map((inc) => (
+            <div key={inc.id} className="border border-black/10 px-4 py-4">
+              <p className="text-sm font-medium text-black">✦ {inc.title}</p>
+              <p className="mt-2 text-[12px] leading-relaxed text-black/60">
+                {inc.body}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 border border-black/10 px-4 py-4">
+          <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+            A note on 3D renders
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-black/65">
+            {doc.includedRenders} renders are included. {doc.rendersNote} Extra
+            renders: {formatINR(doc.extraRenderRate)} each.
+          </p>
+        </div>
+      </section>
+
+      {/* Payments */}
+      <section className="border-b border-black/10 px-8 py-10 md:px-12">
+        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+          {doc.paymentHeading}
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-black/65">
+          {doc.paymentIntro}
+        </p>
+        <table className="mt-6 w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-black/15 font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+              <th className="py-2">%</th>
+              <th className="py-2">Milestone</th>
+              <th className="py-2">Trigger</th>
+              <th className="py-2 text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {calc.milestoneAmounts.map((m) => (
+              <tr key={m.id} className="border-b border-black/10 align-top">
+                <td className="py-3 pr-2 font-medium">{m.percent}%</td>
+                <td className="py-3 pr-2">{m.label}</td>
+                <td className="py-3 pr-2 text-black/60">{m.trigger}</td>
+                <td className="py-3 text-right font-medium">
+                  {formatINR(m.amount)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mt-5 text-xs leading-relaxed text-black/55">
+          FEE PROTECTION — {doc.feeProtection}
+        </p>
+      </section>
+
+      {/* Terms */}
+      <section className="border-b border-black/10 px-8 py-10 md:px-12">
+        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+          {doc.termsHeading}
+        </p>
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+          {doc.terms.map((t) => (
+            <li key={t.id} className="border border-black/10 px-4 py-4">
+              <p className="text-sm font-medium text-black">◈ {t.title}</p>
+              <p className="mt-2 text-[12px] leading-relaxed text-black/60">
+                {t.body}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Close */}
+      <section className="px-8 py-10 md:px-12">
+        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+          {doc.nextHeading}
+        </p>
+        <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-black/70">
+          {doc.nextBody}
+        </p>
+        <div className="mt-10 grid gap-8 sm:grid-cols-2">
+          <div className="border-t border-black/20 pt-4">
+            <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+              {doc.preparedByRole}
+            </p>
+            <p className="mt-2 text-sm font-medium">{doc.preparedByName}</p>
+            <p className="mt-8 text-xs text-black/40">Signature & Date</p>
+          </div>
+          <div className="border-t border-black/20 pt-4">
+            <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+              {doc.acceptedByRole}
+            </p>
+            <p className="mt-2 text-sm font-medium">
+              {doc.acceptedByName || doc.clientName}
+            </p>
+            <p className="mt-8 text-xs text-black/40">Signature, Date & Place</p>
+          </div>
+        </div>
+        <footer className="mt-12 flex items-end justify-between border-t border-black/10 pt-5">
+          <div>
+            <Image src={logoSrc} alt="essentia" width={110} height={26} />
+            <p className="mt-2 text-xs text-black/45">{doc.partnerLine}</p>
+          </div>
+          <p className="font-body text-[11px] uppercase tracking-[0.14em] text-black/55">
+            {doc.footerTagline}
+          </p>
+        </footer>
+      </section>
+    </article>
   );
 }

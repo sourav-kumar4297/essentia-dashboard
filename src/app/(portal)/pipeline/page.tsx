@@ -1,155 +1,206 @@
 "use client";
 
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { PageHeader, Panel, Stat, Button } from "@/components/ui";
-import { usePortal } from "@/lib/store";
-import { leadIntelligence, relativeAge } from "@/lib/lead-intel";
+import { PlatformTabs } from "@/components/PlatformTabs";
+import { useLeadStats } from "@/lib/use-lead-stats";
+import { BD_STATUS_LABELS, type BdLeadStatus } from "@/lib/bd-types";
 import { clsx } from "clsx";
+import { formatDistanceToNow } from "date-fns";
 
 export default function DashboardPage() {
-  const { leads } = usePortal();
-  const intel = leadIntelligence(leads);
-  const maxChannel = Math.max(...intel.channels.map((c) => c.count), 1);
-  const recent = [...leads].sort(
-    (a, b) =>
-      new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime(),
-  );
+  const { stats, loading } = useLeadStats();
+  const total = stats?.total ?? 0;
+  const channels = stats?.channels ?? [];
+  const recent = stats?.recent ?? [];
+  const maxChannel = Math.max(...channels.map((c) => c.count), 1);
+  const topChannels = [...channels]
+    .filter((c) => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+  const displayChannels =
+    topChannels.length > 0 ? topChannels : channels.slice(0, 8);
+
+  const statusOrder: BdLeadStatus[] = [
+    "NEW",
+    "CONTACTED",
+    "IN_DISCUSSION",
+    "PROPOSAL_SENT",
+    "WON",
+    "HOLD",
+    "LOST",
+  ];
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
-        eyebrow="Overview"
-        title="Lead Intelligence Dashboard"
-        description="Essentia Environments (EE) and Essentia Home (EH) leads across channels."
+        eyebrow="Lead platform"
+        title="Dashboard"
+        description="Live BD lead intelligence across channels and business units."
         actions={
           <Link href="/leads?new=1">
-            <Button>+ New Lead</Button>
+            <Button>
+              <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+              New Lead
+            </Button>
           </Link>
         }
       />
 
-      {/* Top tabs like reference */}
-      <div className="mb-8 flex flex-wrap gap-1 border-b border-line">
-        {[
-          { href: "/pipeline", label: "Dashboard", active: true },
-          { href: "/leads", label: `All Leads (${leads.length})` },
-          { href: "/board", label: "Pipeline" },
-          { href: "/channels", label: "Channels" },
-        ].map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={clsx(
-              "label border-b-2 px-3 py-2.5 transition",
-              tab.active
-                ? "border-fg text-fg"
-                : "border-transparent text-fg-muted hover:text-fg",
-            )}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <PlatformTabs />
 
-      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat
-          label="Total leads"
-          value={intel.total}
-          hint="All channels, all BUs"
-        />
-        <div className="panel-surface border-t-2 border-t-[#2e3f6b] px-5 py-5 animate-rise">
-          <p className="label text-fg-muted">EE leads</p>
-          <p className="metric mt-3 text-[15px] tracking-wide">{intel.ee}</p>
-          <p className="label mt-1.5 text-fg-dim">Essentia Environments</p>
-        </div>
-        <div className="panel-surface border-t-2 border-t-[#2e5c3a] px-5 py-5 animate-rise delay-1">
-          <p className="label text-fg-muted">EH leads</p>
-          <p className="metric mt-3 text-[15px] tracking-wide">{intel.eh}</p>
-          <p className="label mt-1.5 text-fg-dim">Essentia Home</p>
-        </div>
-        <Stat
-          label="Win rate"
-          value={`${intel.winRate}%`}
-          hint={`${intel.signed} signed`}
-        />
-      </div>
+      {loading && !stats && (
+        <p className="label py-10 text-center text-fg-muted">Loading…</p>
+      )}
 
-      <div className="mb-8 grid gap-3 sm:grid-cols-3">
-        <Stat
-          label="Cross-sell clients"
-          value={intel.crossSell}
-          hint="Active with both EE & EH"
-        />
-        <Stat
-          label="Top channel"
-          value={intel.topChannel}
-          hint={`${intel.topChannelCount} leads`}
-        />
-        <Stat
-          label="This month"
-          value={intel.thisMonth}
-          hint="Leads since month start"
-        />
-      </div>
+      {stats && (
+        <>
+          <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat
+              label="Total leads"
+              value={total.toLocaleString()}
+              hint="All channels, all BUs"
+            />
+            <div className="panel-surface border-t-2 border-t-[#2e3f6b] px-5 py-5 animate-rise">
+              <p className="label text-fg-muted">EE leads</p>
+              <p className="metric mt-3 text-[15px] tracking-wide text-fg">
+                {stats.ee.toLocaleString()}
+              </p>
+              <p className="label mt-1.5 text-fg-dim">Essentia Environments</p>
+            </div>
+            <div className="panel-surface border-t-2 border-t-[#2e5c3a] px-5 py-5 animate-rise delay-1">
+              <p className="label text-fg-muted">EH / other</p>
+              <p className="metric mt-3 text-[15px] tracking-wide text-fg">
+                {(stats.eh + stats.cc).toLocaleString()}
+              </p>
+              <p className="label mt-1.5 text-fg-dim">
+                EH {stats.eh} · CC {stats.cc}
+              </p>
+            </div>
+            <Stat
+              label="Win rate"
+              value={`${stats.winRate}%`}
+              hint={`${stats.won.toLocaleString()} won`}
+            />
+          </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Leads by channel" className="animate-rise">
-          <ul className="space-y-4">
-            {intel.channels.map(({ channel, count }) => (
-              <li key={channel}>
-                <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                  <span className="label text-fg">{channel}</span>
-                  <span className="metric text-fg-muted">{count}</span>
-                </div>
-                <div className="h-[3px] w-full bg-line">
-                  <div
-                    className="h-full bg-fg transition-all duration-500"
-                    style={{
-                      width: `${Math.max((count / maxChannel) * 100, count ? 4 : 0)}%`,
-                      opacity: count ? 1 : 0.2,
-                    }}
-                  />
-                </div>
-              </li>
+          <div className="mb-8 grid gap-3 sm:grid-cols-3">
+            <Stat
+              label="Top channel"
+              value={stats.topChannel}
+              hint={`${stats.topChannelCount.toLocaleString()} leads`}
+            />
+            <Stat
+              label="This month"
+              value={stats.thisMonth.toLocaleString()}
+              hint="Leads since month start"
+            />
+            <Stat
+              label="Active channels"
+              value={stats.activeChannels}
+              hint={`${channels.length} tracked sources`}
+            />
+          </div>
+
+          <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            {statusOrder.map((status) => (
+              <Link
+                key={status}
+                href={`/leads?status=${status}`}
+                className="panel-surface px-4 py-4 transition hover:border-line-strong"
+              >
+                <p className="label text-fg-muted">
+                  {BD_STATUS_LABELS[status]}
+                </p>
+                <p className="metric mt-2 text-[18px] text-fg">
+                  {(stats.statusCounts[status] ?? 0).toLocaleString()}
+                </p>
+              </Link>
             ))}
-          </ul>
-        </Panel>
+          </div>
 
-        <Panel title="Recent leads" className="animate-rise delay-1">
-          <ul className="divide-y divide-line">
-            {recent.map((lead) => (
-              <li key={lead.id}>
-                <Link
-                  href={`/leads?focus=${lead.id}`}
-                  className="flex items-start justify-between gap-3 py-3 transition hover:bg-surface-hover"
-                >
-                  <div className="min-w-0">
-                    <p className="label text-fg">{lead.name}</p>
-                    <p className="metric mt-0.5 text-fg-dim">
-                      {lead.source} · {lead.territory}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span
-                      className={clsx(
-                        "metric border px-1.5 py-0.5",
-                        lead.businessUnit === "EE"
-                          ? "border-[#2e3f6b]/40 text-[#2e3f6b]"
-                          : "border-[#2e5c3a]/40 text-[#2e5c3a]",
-                      )}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Panel title="Leads by channel" className="animate-rise">
+              <ul className="space-y-4">
+                {displayChannels.map(({ channel, count }) => (
+                  <li key={channel}>
+                    <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                      <span className="label text-fg">{channel}</span>
+                      <span className="metric text-fg-muted">
+                        {count.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="h-[3px] w-full bg-line">
+                      <div
+                        className="h-full bg-fg transition-all duration-500"
+                        style={{
+                          width: `${Math.max((count / maxChannel) * 100, count ? 4 : 0)}%`,
+                          opacity: count ? 1 : 0.2,
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/channels"
+                className="label mt-5 inline-block text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+              >
+                View all channels →
+              </Link>
+            </Panel>
+
+            <Panel title="Recent leads" className="animate-rise delay-1">
+              <ul className="divide-y divide-line">
+                {recent.length === 0 && (
+                  <li className="label py-6 text-center text-fg-dim">
+                    No leads yet.
+                  </li>
+                )}
+                {recent.map((lead) => (
+                  <li key={lead.id}>
+                    <Link
+                      href={`/leads?focus=${lead.id}`}
+                      className="flex items-start justify-between gap-3 py-3 transition hover:bg-surface-hover"
                     >
-                      {lead.businessUnit}
-                    </span>
-                    <span className="metric text-fg-dim">
-                      {relativeAge(lead.capturedAt)}
-                    </span>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
+                      <div className="min-w-0">
+                        <p className="label truncate text-fg">{lead.name}</p>
+                        <p className="metric mt-0.5 truncate text-fg-dim">
+                          {lead.source} · {lead.territory || "—"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <span
+                          className={clsx(
+                            "metric border px-1.5 py-0.5",
+                            lead.businessUnit === "EE"
+                              ? "border-[#2e3f6b]/40 text-[#2e3f6b]"
+                              : "border-[#2e5c3a]/40 text-[#2e5c3a]",
+                          )}
+                        >
+                          {lead.businessUnit}
+                        </span>
+                        <span className="metric text-fg-dim">
+                          {formatDistanceToNow(new Date(lead.createdAt), {
+                            addSuffix: true,
+                          })}
+                        </span>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/leads"
+                className="label mt-4 inline-block text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+              >
+                Open all leads →
+              </Link>
+            </Panel>
+          </div>
+        </>
+      )}
     </div>
   );
 }

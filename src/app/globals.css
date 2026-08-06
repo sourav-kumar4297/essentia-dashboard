@@ -1,16 +1,35 @@
 @import url("https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap");
 @import "tailwindcss";
 
-/* Default = dark (essentiaenvironments.com) */
+/* Default = light (readable BD portal) */
 :root,
+[data-theme="light"] {
+  --bg: #f3f4f6;
+  --bg-soft: #e8eaed;
+  --surface: #ffffff;
+  --surface-hover: #f8f9fa;
+  --fg: #111827;
+  --fg-muted: rgba(17, 24, 39, 0.72);
+  --fg-dim: rgba(17, 24, 39, 0.55);
+  --line: rgba(17, 24, 39, 0.12);
+  --line-strong: rgba(17, 24, 39, 0.28);
+  --accent: #111827;
+  --accent-fg: #ffffff;
+  --error: #c23b3b;
+  --ok: #2e5c3a;
+  --glow: rgba(17, 24, 39, 0.04);
+  --sidebar: #ffffff;
+  --header: rgba(243, 244, 246, 0.92);
+}
+
 [data-theme="dark"] {
   --bg: #000000;
   --bg-soft: #070707;
   --surface: #0e0e0e;
   --surface-hover: #141414;
   --fg: #ffffff;
-  --fg-muted: rgba(255, 255, 255, 0.56);
-  --fg-dim: rgba(255, 255, 255, 0.36);
+  --fg-muted: rgba(255, 255, 255, 0.72);
+  --fg-dim: rgba(255, 255, 255, 0.52);
   --line: rgba(255, 255, 255, 0.12);
   --line-strong: rgba(255, 255, 255, 0.28);
   --accent: #ffffff;
@@ -20,25 +39,6 @@
   --glow: rgba(255, 255, 255, 0.04);
   --sidebar: #000000;
   --header: rgba(0, 0, 0, 0.82);
-}
-
-[data-theme="light"] {
-  --bg: #f4f4f2;
-  --bg-soft: #ecece8;
-  --surface: #ffffff;
-  --surface-hover: #fafaf8;
-  --fg: #0a0a0a;
-  --fg-muted: rgba(10, 10, 10, 0.56);
-  --fg-dim: rgba(10, 10, 10, 0.36);
-  --line: rgba(10, 10, 10, 0.1);
-  --line-strong: rgba(10, 10, 10, 0.22);
-  --accent: #0a0a0a;
-  --accent-fg: #ffffff;
-  --error: #c23b3b;
-  --ok: #2e5c3a;
-  --glow: rgba(10, 10, 10, 0.03);
-  --sidebar: #ffffff;
-  --header: rgba(244, 244, 242, 0.88);
 }
 
 @theme {
@@ -89,14 +89,14 @@ select option {
 /* Typography only — color inherits so text utilities can override */
 .label {
   font-family: var(--font-body);
-  font-weight: 300;
+  font-weight: 400;
   font-size: 13px;
   line-height: 1.45;
 }
 
 .metric {
   font-family: var(--font-body);
-  font-weight: 300;
+  font-weight: 400;
   font-size: 12px;
   line-height: 1.35;
 }
@@ -309,5 +309,16 @@ select option {
   }
   .no-print {
     display: none !important;
+  }
+  .shell-main {
+    background: #fff !important;
+    padding: 0 !important;
+  }
+  .proposal-print {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .proposal-print section {
+    break-inside: avoid;
   }
 }

@@ -5,34 +5,109 @@ import Link from "next/link";
 import { Moon, RefreshCw, Sun, UserRound } from "lucide-react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { useTheme } from "@/lib/theme";
-import { usePortal } from "@/lib/store";
-import { useProfile } from "@/lib/profile";
+import { useAuth } from "@/lib/auth-context";
+import { canSyncHubspot } from "@/lib/rbac";
 import { clsx } from "clsx";
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
-  const { resetDemo, leads } = usePortal();
-  const { profile } = useProfile();
+  const { user } = useAuth();
   const [toast, setToast] = useState("");
+  const [hubspotBusy, setHubspotBusy] = useState(false);
+  const [hubspotBg, setHubspotBg] = useState(false);
+  const [hubspotProgress, setHubspotProgress] = useState("");
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(""), 3000);
+    const t = setTimeout(() => setToast(""), 6000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  async function syncChunk(body: {
+    reset?: boolean;
+    after?: string | null;
+    limit?: number;
+  }) {
+    const res = await fetch("/api/hubspot/sync", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return (await res.json()) as {
+      ok: boolean;
+      message?: string;
+      error?: string;
+      done?: boolean;
+      after?: string | null;
+      created?: number;
+      leadCount?: number;
+    };
+  }
+
+  async function syncHubspot() {
+    setHubspotBusy(true);
+    setHubspotBg(false);
+    setHubspotProgress("");
+    try {
+      // First 200 — clear + save + unlock UI
+      const first = await syncChunk({ reset: true, limit: 200 });
+      if (!first.ok) {
+        setToast(first.message || first.error || "Sync failed.");
+        setHubspotBusy(false);
+        return;
+      }
+
+      setToast(
+        `First ${first.created ?? 200} leads ready — open All Leads. Rest syncing in background…`,
+      );
+      setHubspotBusy(false);
+
+      if (first.done) {
+        setToast(first.message || "HubSpot sync complete.");
+        return;
+      }
+
+      // Background: remaining chunks
+      setHubspotBg(true);
+      let after = first.after ?? null;
+      while (after) {
+        const chunk = await syncChunk({ reset: false, after, limit: 200 });
+        if (!chunk.ok) {
+          setToast(chunk.message || "Background sync stopped.");
+          break;
+        }
+        setHubspotProgress(
+          `${chunk.leadCount ?? 0} leads synced…`,
+        );
+        if (chunk.done) {
+          setToast(chunk.message || "HubSpot sync complete.");
+          after = null;
+        } else {
+          after = chunk.after ?? null;
+        }
+      }
+    } catch {
+      setToast("HubSpot sync failed.");
+    } finally {
+      setHubspotBusy(false);
+      setHubspotBg(false);
+      setHubspotProgress("");
+    }
+  }
 
   return (
     <div>
       <PageHeader
         eyebrow="Account"
         title="Settings"
-        description="Appearance, data and account preferences."
+        description="Appearance, role and integrations."
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel className="animate-rise" title="Appearance">
           <p className="label mb-4 text-fg-muted">
-            Choose how the portal looks. Your preference is remembered on this
+            Choose how the portal looks. Preference is remembered on this
             device.
           </p>
           <div className="grid grid-cols-2 gap-2">
@@ -60,13 +135,19 @@ export default function SettingsPage() {
           </div>
         </Panel>
 
-        <Panel className="animate-rise delay-1" title="Profile">
-          <p className="label mb-4 text-fg-muted">
-            Signed in as <span className="text-fg">{profile.name}</span>
-            {profile.email ? ` · ${profile.email}` : ""}. Update your details
-            from the profile page.
+        <Panel className="animate-rise delay-1" title="Account">
+          <p className="label mb-1 text-fg-muted">Signed in as</p>
+          <p className="label text-fg">{user?.name}</p>
+          <p className="metric mt-1 text-fg-dim">{user?.email}</p>
+          <p className="label mt-3 text-fg-muted">
+            Role: <span className="text-fg">{user?.role}</span>
           </p>
-          <Link href="/profile">
+          <p className="label mt-1 text-fg-dim">
+            {user?.role === "MEMBER"
+              ? "Members see assigned leads and can create personal referrals."
+              : "Full BD access — assign, approve referrals, sync HubSpot."}
+          </p>
+          <Link href="/profile" className="mt-4 inline-block">
             <Button variant="secondary">
               <UserRound className="h-3.5 w-3.5" />
               Edit profile
@@ -74,30 +155,37 @@ export default function SettingsPage() {
           </Link>
         </Panel>
 
-        <Panel className="animate-rise delay-2" title="Demo data">
-          <p className="label mb-4 text-fg-muted">
-            The portal currently holds {leads.length} sample lead
-            {leads.length === 1 ? "" : "s"}. Resetting restores the original
-            sample dataset — anything you added will be removed.
-          </p>
-          <Button
-            variant="danger"
-            onClick={() => {
-              if (confirm("Reset demo data? Everything you added will be lost.")) {
-                resetDemo();
-                setToast("Demo data restored.");
-              }
-            }}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Reset sample data
-          </Button>
-          {toast && (
-            <p className="label mt-4 border border-line px-3 py-2 text-fg-muted">
-              {toast}
+        {user && canSyncHubspot(user.role) && (
+          <Panel className="animate-rise delay-2" title="HubSpot">
+            <p className="label mb-4 text-fg-muted">
+              Saves the <span className="text-fg">first 200</span> contacts
+              immediately, then imports the rest in the background so the UI
+              stays usable.
             </p>
-          )}
-        </Panel>
+            <Button
+              variant="secondary"
+              disabled={hubspotBusy || hubspotBg}
+              onClick={() => void syncHubspot()}
+            >
+              <RefreshCw
+                className={clsx(
+                  "h-3.5 w-3.5",
+                  (hubspotBusy || hubspotBg) && "animate-spin",
+                )}
+              />
+              {hubspotBusy
+                ? "Saving first 200…"
+                : hubspotBg
+                  ? "Syncing rest in background…"
+                  : "Sync HubSpot contacts"}
+            </Button>
+            {(toast || hubspotProgress) && (
+              <p className="label mt-4 border border-line px-3 py-2 text-fg-muted">
+                {hubspotProgress || toast}
+              </p>
+            )}
+          </Panel>
+        )}
       </div>
     </div>
   );

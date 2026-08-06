@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Button, Field, PageHeader, Panel, inputClass } from "@/components/ui";
 import { useProfile } from "@/lib/profile";
-import { logout, DEMO_CREDENTIALS } from "@/lib/auth";
+import { useAuth } from "@/lib/auth-context";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { profile, updateProfile } = useProfile();
+  const { user, logout } = useAuth();
   const [form, setForm] = useState(profile);
   const [toast, setToast] = useState("");
 
@@ -50,18 +51,20 @@ export default function ProfilePage() {
         <Panel className="animate-rise self-start">
           <div className="flex flex-col items-center py-4 text-center">
             <span className="flex h-16 w-16 items-center justify-center border border-line-strong bg-surface-hover font-display text-[26px] text-fg">
-              {(profile.name.trim()[0] ?? "A").toUpperCase()}
+              {(user?.name?.trim()[0] ?? profile.name.trim()[0] ?? "A").toUpperCase()}
             </span>
-            <p className="heading mt-4 text-[20px]">{profile.name}</p>
-            <p className="label mt-1 text-fg-muted">{profile.title || "—"}</p>
+            <p className="heading mt-4 text-[20px]">
+              {user?.name ?? profile.name}
+            </p>
+            <p className="label mt-1 text-fg-muted">{user?.role ?? "—"}</p>
             <p className="metric mt-3 text-fg-dim">
-              Signed in as {DEMO_CREDENTIALS.username}
+              {user?.email ?? "Signed out"}
             </p>
             <Button
               variant="secondary"
               className="mt-5"
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await logout();
                 router.replace("/login");
               }}
             >

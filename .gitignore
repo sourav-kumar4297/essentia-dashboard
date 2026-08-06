@@ -21,7 +21,14 @@
 # misc
 .DS_Store
 *.pem
+.env
 .env*.local
+
+# prisma
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
 
 # debug
 npm-debug.log*
@@ -35,4 +42,13 @@ next-env.d.ts
 # reference material (keep local only)
 _ref-package/
 _ref-frames/
+_ref-laburnum*
 scripts/
+
+# local AI tooling
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+
+/src/generated/prisma

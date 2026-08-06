@@ -12,7 +12,8 @@ import {
 
 export type ThemeMode = "dark" | "light";
 
-const STORAGE_KEY = "essentia_theme_v1";
+/** v2 — resets saved preference so everyone starts on light */
+const STORAGE_KEY = "essentia_theme_v2";
 
 interface ThemeContextValue {
   theme: ThemeMode;
@@ -27,12 +28,12 @@ function applyTheme(theme: ThemeMode) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("dark");
+  const [theme, setThemeState] = useState<ThemeMode>("light");
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
     const initial =
-      stored === "light" || stored === "dark" ? stored : "dark";
+      stored === "light" || stored === "dark" ? stored : "light";
     setThemeState(initial);
     applyTheme(initial);
   }, []);

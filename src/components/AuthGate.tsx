@@ -2,16 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { isAuthenticated } from "@/lib/auth";
 import { BrandLoader } from "@/components/BrandLoader";
+import { useAuth } from "@/lib/auth-context";
 
-/** Minimum time the brand intro stays on screen (ms) so it never flashes. */
 const SPLASH_MS = 1600;
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [ready, setReady] = useState(false);
+  const { user, loading } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
@@ -20,19 +19,21 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const ok = isAuthenticated();
-    if (!ok && pathname !== "/login") {
+    if (loading) return;
+    if (!user && pathname !== "/login") {
       router.replace("/login");
       return;
     }
-    if (ok && pathname === "/login") {
+    if (user && pathname === "/login") {
       router.replace("/pipeline");
-      return;
     }
-    setReady(true);
-  }, [pathname, router]);
+  }, [user, loading, pathname, router]);
 
-  if (!splashDone || (!ready && pathname !== "/login")) {
+  if (!splashDone || loading) {
+    return <BrandLoader />;
+  }
+
+  if (!user && pathname !== "/login") {
     return <BrandLoader />;
   }
 
