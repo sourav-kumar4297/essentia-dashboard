@@ -4,8 +4,8 @@ import { createSession, ensureUser } from "@/lib/session";
 import { SESSION_COOKIE, SESSION_TTL_MS, type Role } from "@/lib/bd-types";
 
 /** Demo portal credentials — single account for the team. */
-export const DEMO_USERNAME = "admin";
-export const DEMO_PASSWORD = "password123";
+const DEMO_USERNAME = "admin";
+const DEMO_PASSWORD = "password123";
 const DEMO_EMAIL = "admin@essentia.local";
 const DEMO_NAME = "Super Admin";
 
