@@ -272,13 +272,19 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 border border-dashed border-line px-4 py-3">
-            <p className="label text-fg-dim">Demo credentials</p>
-            <p className="label mt-1.5 text-fg-muted">
-              Username: <span className="text-fg">admin</span>
-            </p>
-            <p className="label text-fg-muted">
-              Password: <span className="text-fg">password123</span>
-            </p>
+            <p className="label text-fg-dim">Demo credentials — click to fill</p>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername("admin");
+                setPassword("password123");
+                setError("");
+              }}
+              className="mt-2 w-full border border-line bg-surface px-3 py-2.5 text-left transition hover:border-line-strong hover:bg-surface-hover"
+            >
+              <p className="label text-fg">admin</p>
+              <p className="metric mt-0.5 text-fg-dim">password123 · Super Admin</p>
+            </button>
           </div>
         </div>
       </main>
