@@ -16,6 +16,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  applyUser: (user: AuthUser) => void;
   logout: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -46,6 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
+  const applyUser = useCallback((next: AuthUser) => {
+    setUser(next);
+    setLoading(false);
+  }, []);
+
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", {
       method: "POST",
@@ -59,10 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       refresh,
+      applyUser,
       logout,
       isAdmin: user ? isFullAccess(user.role) : false,
     }),
-    [user, loading, refresh, logout],
+    [user, loading, refresh, applyUser, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

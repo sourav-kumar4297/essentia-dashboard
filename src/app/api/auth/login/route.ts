@@ -1,41 +1,46 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { createSession, ensureUser } from "@/lib/session";
-import { SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/bd-types";
+import { SESSION_COOKIE, SESSION_TTL_MS, type Role } from "@/lib/bd-types";
 
-/** Temporary demo credentials (same as early portal). */
-const DEMO_USERNAME = "admin";
-const DEMO_PASSWORD = "password123";
+/** Demo portal credentials — single account for the team. */
+export const DEMO_USERNAME = "admin";
+export const DEMO_PASSWORD = "password123";
 const DEMO_EMAIL = "admin@essentia.local";
+const DEMO_NAME = "Super Admin";
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as {
+    const body = (await req.json().catch(() => ({}))) as {
       username?: string;
       password?: string;
+      /** One-tap demo login from the login card */
+      demo?: boolean;
     };
-    const username = body.username?.trim().toLowerCase() ?? "";
+
+    const isDemoTap = body.demo === true;
+    const username = (body.username ?? "").trim().toLowerCase();
     const password = body.password ?? "";
 
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: "Username and password are required." },
-        { status: 400 },
-      );
-    }
+    const ok =
+      isDemoTap ||
+      ((username === DEMO_USERNAME || username === DEMO_EMAIL) &&
+        password === DEMO_PASSWORD);
 
-    const validUser =
-      username === DEMO_USERNAME ||
-      username === DEMO_EMAIL ||
-      username === "admin@essentia.local";
-
-    if (!validUser || password !== DEMO_PASSWORD) {
+    if (!ok) {
       return NextResponse.json(
-        { error: "Invalid username or password." },
+        { error: "Use the demo account on this screen to sign in." },
         { status: 401 },
       );
     }
 
-    const user = await ensureUser(DEMO_EMAIL, "Super Admin");
+    // Ensure admin user exists and is always Super Admin for demo login
+    const base = await ensureUser(DEMO_EMAIL, DEMO_NAME);
+    const user = await prisma.user.update({
+      where: { id: base.id },
+      data: { name: DEMO_NAME, role: "SUPERADMIN" },
+    });
+
     const token = await createSession(user.id);
 
     const res = NextResponse.json({
@@ -44,9 +49,10 @@ export async function POST(req: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: user.role as Role,
       },
     });
+
     res.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true,
       sameSite: "lax",
@@ -56,10 +62,11 @@ export async function POST(req: Request) {
     });
     return res;
   } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { error: "Could not sign in." },
-      { status: 500 },
-    );
+    console.error("[auth/login]", err);
+    const message =
+      err instanceof Error && /DATABASE_URL|Can't reach|P1001|P1017/i.test(err.message)
+        ? "Database is not configured on the server. Set DATABASE_URL (Neon) in Vercel env."
+        : "Could not sign in. Check DATABASE_URL / Neon connection, then try again.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
