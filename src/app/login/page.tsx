@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Field, inputClass } from "@/components/ui";
 import { useAuth } from "@/lib/auth-context";
 import type { AuthUser } from "@/lib/bd-types";
 import { clsx } from "clsx";
@@ -78,6 +79,8 @@ export default function LoginPage() {
   const { applyUser } = useAuth();
   const brandRef = useRef<HTMLElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [shake, setShake] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -110,19 +113,33 @@ export default function LoginPage() {
     setShake((n) => n + 1);
   }
 
-  async function loginAsDemo() {
+  function fillDemo() {
+    setUsername("admin");
+    setPassword("password123");
     setError("");
+  }
+
+  async function signIn(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!username.trim() || !password) {
+      fail("Enter username and password.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ demo: true }),
+        body: JSON.stringify({
+          username: username.trim(),
+          password,
+        }),
       });
       const data = (await res.json()) as { error?: string; user?: AuthUser };
       if (!res.ok || !data.user) {
-        fail(data.error || "Could not sign in.");
+        fail(data.error || "Invalid username or password.");
         return;
       }
       applyUser(data.user);
@@ -208,46 +225,72 @@ export default function LoginPage() {
           </p>
           <h1 className="heading mt-2 text-[30px]">{greeting()}</h1>
           <p className="label mt-2 text-fg-muted">
-            Tap the demo account below to enter the portal.
+            Sign in with username and password, or tap the demo account to
+            autofill.
           </p>
 
-          <div
+          <form
             key={`login-${shake}`}
+            onSubmit={signIn}
             className={clsx("mt-8 space-y-4", shake > 0 && "animate-shake")}
           >
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => void loginAsDemo()}
-              className="group w-full border border-line bg-surface px-4 py-4 text-left transition hover:border-line-strong hover:bg-surface-hover disabled:opacity-60"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="label tracking-[0.14em] text-fg-dim uppercase">
-                    Demo account
-                  </p>
-                  <p className="heading mt-1 text-[22px]">admin</p>
-                  <p className="metric mt-1 text-fg-muted">
-                    password123 · Super Admin
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-1.5 border border-line px-3 py-2 font-body text-[11px] uppercase tracking-[0.14em] text-fg transition group-hover:bg-accent group-hover:text-accent-fg">
-                  {loading ? "Signing in…" : "Enter"}
-                  {!loading && (
-                    <ArrowRight
-                      className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
-                      strokeWidth={1.5}
-                    />
-                  )}
-                </span>
-              </div>
-            </button>
-
+            <Field label="Username">
+              <input
+                type="text"
+                className={clsx(inputClass, error && "!border-error/60")}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="admin"
+                autoComplete="username"
+                autoFocus
+              />
+            </Field>
+            <Field label="Password">
+              <input
+                type="password"
+                className={clsx(inputClass, error && "!border-error/60")}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+            </Field>
             {error && (
               <p className="label border border-error/40 px-3 py-2 text-error">
                 {error}
               </p>
             )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="group inline-flex w-full items-center justify-center gap-2 bg-accent px-4 py-3 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-accent-fg transition hover:opacity-90 disabled:opacity-60"
+            >
+              {loading ? (
+                "Signing in…"
+              ) : (
+                <>
+                  Enter portal
+                  <ArrowRight
+                    className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
+                    strokeWidth={1.5}
+                  />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 border border-dashed border-line px-4 py-3">
+            <p className="label text-fg-dim">Demo credentials — click to fill</p>
+            <button
+              type="button"
+              onClick={fillDemo}
+              className="mt-2 w-full border border-line bg-surface px-3 py-2.5 text-left transition hover:border-line-strong hover:bg-surface-hover"
+            >
+              <p className="label text-fg">admin</p>
+              <p className="metric mt-0.5 text-fg-dim">
+                password123 · Super Admin
+              </p>
+            </button>
           </div>
         </div>
       </main>
