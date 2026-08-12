@@ -19,9 +19,9 @@ export default function ClosingPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="05 · Close"
-        title="Closing & Handoff"
-        description="Accept a proposal on step 04, then confirm first instalment to fire the handoff."
+        eyebrow="Journey"
+        title="Closing"
+        description="Confirm acceptance and first instalment to fire the handoff."
       />
 
       <div className="mb-8 grid gap-3 sm:grid-cols-3">

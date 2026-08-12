@@ -63,8 +63,8 @@ export default function BoardPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Pipeline"
-        title="Stage board"
+        eyebrow="Lead platform"
+        title="Pipeline"
         description="BD journey — New through Won, plus Hold and Lost."
       />
 

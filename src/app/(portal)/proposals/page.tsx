@@ -148,7 +148,7 @@ export default function ProposalsPage() {
       <PageHeader
         eyebrow="Tools"
         title="Fee Configurator"
-        description="Select a project type (as on essentiaenvironments.com/projects), then edit the proposal — rates, privilege, milestones, images — and print to PDF."
+        description="Select a project type, edit rates and milestones, then preview and print."
         actions={
           <div className="no-print flex flex-wrap gap-2">
             <Button
@@ -188,50 +188,50 @@ export default function ProposalsPage() {
         </p>
       )}
 
-      <div className="no-print mb-6 animate-rise">
-        <p className="label mb-2 text-fg-muted">Project type</p>
-        <p className="heading mb-3 text-[18px] italic text-fg-muted">
-          spectacular structural creations
+      <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4 animate-rise">
+        <p className="heading text-[20px] font-semibold leading-none tracking-tight text-fg">
+          Project type
         </p>
-        <div className="flex flex-wrap gap-2 border-b border-line pb-3">
+        <div className="flex flex-wrap items-center gap-1 sm:justify-end">
           {FEE_PROJECT_TYPES.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => selectProjectType(t.id)}
               className={clsx(
-                "label border px-3 py-2 lowercase tracking-[0.04em] transition",
+                "label px-3 py-2 tracking-[0.04em] transition",
                 doc.projectType === t.id
-                  ? "border-fg bg-surface-hover text-fg"
-                  : "border-transparent text-fg-muted hover:border-line hover:text-fg",
+                  ? "bg-fg text-bg"
+                  : "text-fg-muted hover:bg-surface-hover hover:text-fg",
               )}
             >
-              {t.short}
+              {t.label}
             </button>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setDoc(createTemplateForType(doc.projectType));
-              setToast("Reset to sample template for this type.");
-            }}
-          >
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
-            Reset sample
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setDoc(createBlankCommercialTemplate());
-              setToast("Started blank corporate proposal.");
-            }}
-          >
-            <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
-            New blank
-          </Button>
-        </div>
+      </div>
+
+      <div className="no-print mb-5 flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setDoc(createTemplateForType(doc.projectType));
+            setToast("Reset to sample template for this type.");
+          }}
+        >
+          <RotateCcw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+          Reset sample
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setDoc(createBlankCommercialTemplate());
+            setToast("Started blank corporate proposal.");
+          }}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+          New blank
+        </Button>
       </div>
 
       <div

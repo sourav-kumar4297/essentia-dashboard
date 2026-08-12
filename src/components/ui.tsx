@@ -13,16 +13,20 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 animate-rise">
+    <div className="mb-4 flex flex-wrap items-start justify-between gap-3 animate-rise">
       <div className="min-w-0 max-w-2xl">
         {eyebrow && (
-          <p className="label tracking-[0.18em] text-fg-muted uppercase">
-            {eyebrow}
-          </p>
+          <nav aria-label="Breadcrumb">
+            <p className="label tracking-[0.14em] text-fg-muted uppercase">
+              {eyebrow}
+              <span className="mx-2 text-fg-dim">/</span>
+              <span className="text-fg">{title}</span>
+            </p>
+          </nav>
         )}
-        <h1 className="heading mt-0.5 text-[24px] leading-tight">{title}</h1>
+        <h1 className="heading mt-1 text-[24px] leading-tight">{title}</h1>
         {description && (
-          <p className="label mt-1 max-w-xl text-fg-muted">{description}</p>
+          <p className="label mt-1.5 max-w-xl text-fg-muted">{description}</p>
         )}
       </div>
       {actions && (

@@ -92,9 +92,9 @@ function ConsultationInner() {
   return (
     <div>
       <PageHeader
-        eyebrow="02 · Customer Advisor — Acquisition"
-        title="Consultation Capture"
-        description="Four discovery points for this sample family — budget, timeline, project type, decision-maker — plus archetype and site details that feed Profile and Proposal."
+        eyebrow="Journey"
+        title="Consultation"
+        description="Capture discovery details — budget, timeline, project type, and decision-maker."
       />
 
       {lead && (

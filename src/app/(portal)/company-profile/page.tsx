@@ -141,8 +141,34 @@ function CompanyProfileInner() {
         description="Build a project-type voice profile, review the draft, then send — never auto-send."
       />
 
+      <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4 animate-rise">
+        <p className="heading text-[20px] font-semibold leading-none tracking-tight text-fg">
+          Project type
+        </p>
+        <div className="flex flex-wrap items-center gap-1 sm:justify-end">
+          {PROJECT_TYPES.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => {
+                setProjectType(p);
+                setPreviewKey((k) => k + 1);
+              }}
+              className={clsx(
+                "label px-3 py-2 capitalize tracking-[0.04em] transition",
+                projectType === p
+                  ? "bg-fg text-bg"
+                  : "text-fg-muted hover:bg-surface-hover hover:text-fg",
+              )}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Controls */}
-      <div className="no-print mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-rise">
+      <div className="no-print mb-4 grid gap-3 sm:grid-cols-2 animate-rise">
         <Field label="Lead">
           <select
             className={inputClass}
@@ -165,29 +191,6 @@ function CompanyProfileInner() {
             placeholder="Tone tweaks before send"
           />
         </Field>
-        <div className="sm:col-span-2">
-          <p className="label mb-1.5 block text-fg-muted">Project type</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {PROJECT_TYPES.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => {
-                  setProjectType(p);
-                  setPreviewKey((k) => k + 1);
-                }}
-                className={clsx(
-                  "label border px-2 py-2.5 capitalize transition",
-                  projectType === p
-                    ? "border-fg bg-surface-hover text-fg"
-                    : "border-line text-fg-muted hover:border-line-strong hover:text-fg",
-                )}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="no-print mb-4 flex flex-wrap items-center gap-2 animate-rise delay-1">
