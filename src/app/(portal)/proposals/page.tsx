@@ -19,10 +19,12 @@ import {
 import { useTheme } from "@/lib/theme";
 import {
   PROPOSAL_STORAGE_KEY,
+  FEE_PROJECT_TYPES,
   calcProposal,
   createBlankCommercialTemplate,
-  createLaburnumTemplate,
+  createTemplateForType,
   formatINR,
+  type FeeProjectType,
   type FeeProposalDoc,
   type ProposalServiceLine,
 } from "@/lib/proposal-template";
@@ -33,7 +35,10 @@ function loadSaved(): FeeProposalDoc[] {
   try {
     const raw = localStorage.getItem(PROPOSAL_STORAGE_KEY);
     if (!raw) return [];
-    return JSON.parse(raw) as FeeProposalDoc[];
+    const list = JSON.parse(raw) as FeeProposalDoc[];
+    return list.filter(
+      (d) => d && d.projectType && Array.isArray(d.services),
+    );
   } catch {
     return [];
   }
@@ -48,7 +53,9 @@ export default function ProposalsPage() {
   const logoSrc = theme === "light" ? "/logo-espresso.png" : "/logo-white.png";
   const printLogo = "/logo-espresso.png";
 
-  const [doc, setDoc] = useState<FeeProposalDoc>(() => createLaburnumTemplate());
+  const [doc, setDoc] = useState<FeeProposalDoc>(() =>
+    createTemplateForType("residence"),
+  );
   const [saved, setSaved] = useState<FeeProposalDoc[]>([]);
   const [toast, setToast] = useState("");
   const [tab, setTab] = useState<"edit" | "preview">("edit");
@@ -58,6 +65,14 @@ export default function ProposalsPage() {
   }, []);
 
   const calc = useMemo(() => calcProposal(doc), [doc]);
+
+  function selectProjectType(type: FeeProjectType) {
+    if (type === doc.projectType) return;
+    setDoc(createTemplateForType(type));
+    const label =
+      FEE_PROJECT_TYPES.find((t) => t.id === type)?.label ?? type;
+    setToast(`Loaded ${label} proposal template.`);
+  }
 
   function patch(partial: Partial<FeeProposalDoc>) {
     setDoc((d) => ({ ...d, ...partial, updatedAt: new Date().toISOString() }));
@@ -133,7 +148,7 @@ export default function ProposalsPage() {
       <PageHeader
         eyebrow="Tools"
         title="Fee Configurator"
-        description="Build an editable design-fee proposal from the essentia commercial template. Team can adjust client details, scopes, rates, privilege, and payment schedule — then print to PDF."
+        description="Select a project type (as on essentiaenvironments.com/projects), then edit the proposal — rates, privilege, milestones, images — and print to PDF."
         actions={
           <div className="no-print flex flex-wrap gap-2">
             <Button
@@ -173,27 +188,50 @@ export default function ProposalsPage() {
         </p>
       )}
 
-      <div className="no-print mb-6 flex flex-wrap gap-2">
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setDoc(createLaburnumTemplate());
-            setToast("Loaded Laburnum sample template.");
-          }}
-        >
-          <RotateCcw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
-          Load Laburnum sample
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setDoc(createBlankCommercialTemplate());
-            setToast("Started blank commercial proposal.");
-          }}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
-          New blank proposal
-        </Button>
+      <div className="no-print mb-6 animate-rise">
+        <p className="label mb-2 text-fg-muted">Project type</p>
+        <p className="heading mb-3 text-[18px] italic text-fg-muted">
+          spectacular structural creations
+        </p>
+        <div className="flex flex-wrap gap-2 border-b border-line pb-3">
+          {FEE_PROJECT_TYPES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => selectProjectType(t.id)}
+              className={clsx(
+                "label border px-3 py-2 lowercase tracking-[0.04em] transition",
+                doc.projectType === t.id
+                  ? "border-fg bg-surface-hover text-fg"
+                  : "border-transparent text-fg-muted hover:border-line hover:text-fg",
+              )}
+            >
+              {t.short}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setDoc(createTemplateForType(doc.projectType));
+              setToast("Reset to sample template for this type.");
+            }}
+          >
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+            Reset sample
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setDoc(createBlankCommercialTemplate());
+              setToast("Started blank corporate proposal.");
+            }}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+            New blank
+          </Button>
+        </div>
       </div>
 
       <div
@@ -657,18 +695,40 @@ function ProposalPreview({
         <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/50">
           {doc.eyebrow}
         </p>
-        <h1 className="mt-3 font-body text-[32px] font-light leading-tight md:text-[40px]">
-          {doc.clientCompany || "Client company"}
+        <h1 className="mt-4 font-body text-[34px] font-light leading-[1.15] md:text-[42px]">
+          {doc.heroHeadline}
         </h1>
-        <p className="mt-2 text-sm text-black/55">{doc.officeAddress}</p>
-        <h2 className="mt-8 font-body text-[22px] font-light">{doc.title}</h2>
+        <p className="mt-4 text-sm text-black/60">
+          Prepared for{" "}
+          <span className="text-black">
+            {[doc.clientName, doc.clientCompany].filter(Boolean).join(" · ") ||
+              "Client"}
+          </span>
+        </p>
+        <p className="mt-1 text-sm text-black/55">{doc.officeAddress}</p>
+        <h2 className="mt-8 font-body text-[18px] font-light text-black/70">
+          {doc.title}
+        </h2>
 
         <dl className="mt-10 grid gap-4 sm:grid-cols-2">
           {[
-            ["CLIENT", `${doc.clientName}\n${doc.clientCompany}`],
-            ["POINT OF CONTACT", doc.pointOfContact],
-            ["OFFICE AREA", `${doc.officeAreaLabel}\n${doc.officeAddress}`],
-            ["REFERRED BY", doc.referredBy],
+            [
+              "CLIENT",
+              [doc.clientName, doc.clientCompany].filter(Boolean).join("\n") ||
+                "—",
+            ],
+            [
+              "POINT OF CONTACT",
+              [
+                doc.pointOfContact,
+                doc.advisorPhone,
+                doc.advisorEmail,
+              ]
+                .filter(Boolean)
+                .join("\n") || "—",
+            ],
+            ["PROJECT AREA", `${doc.officeAreaLabel}\n${doc.officeAddress}`],
+            ["REFERRED BY", doc.referredBy || "—"],
           ].map(([k, v]) => (
             <div key={k} className="border-t border-black/10 pt-3">
               <dt className="font-body text-[10px] uppercase tracking-[0.16em] text-black/45">
@@ -682,6 +742,30 @@ function ProposalPreview({
         </dl>
         <p className="mt-10 text-xs text-black/45">{doc.partnerLine}</p>
       </section>
+
+      {/* Selected work images */}
+      {doc.images?.length > 0 && (
+        <section className="border-b border-black/10 px-8 py-10 md:px-12">
+          <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+            Selected work
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {doc.images.map((img) => (
+              <figure key={img.src} className="overflow-hidden bg-[#f3f3f1]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.src}
+                  alt={img.caption}
+                  className="aspect-[4/3] w-full object-cover"
+                />
+                <figcaption className="px-3 py-3 text-[12px] leading-relaxed text-black/60">
+                  {img.caption}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Note */}
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
@@ -715,7 +799,7 @@ function ProposalPreview({
         </p>
         <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
-            [doc.officeAreaLabel || "—", "OFFICE AREA"],
+            [doc.officeAreaLabel || "—", "PROJECT AREA"],
             [doc.officeAddress.split("·")[0]?.trim() || "—", "LOCATION"],
             [String(calc.lines.length), "INTEGRATED SERVICES"],
             ["26", "YEARS OF PRACTICE"],
