@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { BdLeadStatus, ReferralApproval } from "@/lib/bd-types";
 
 export interface BdLeadRow {
@@ -105,6 +105,35 @@ export function useBdLeadsPage(
   }, [refresh]);
 
   return { leads, total, loading, error, refresh, setLeads };
+}
+
+/** Pull HubSpot while a leads view is open (every minute after an initial 14-day catch-up). */
+export function useHubspotLiveSync(onSynced: () => void) {
+  const onSyncedRef = useRef(onSynced);
+  onSyncedRef.current = onSynced;
+
+  useEffect(() => {
+    let stop = false;
+    async function tick(lookbackHours: number) {
+      try {
+        await fetch("/api/hubspot/sync", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recent: true, lookbackHours }),
+        });
+      } catch {
+        /* ignore */
+      }
+      if (!stop) onSyncedRef.current();
+    }
+    void tick(14 * 24);
+    const id = window.setInterval(() => void tick(2), 60_000);
+    return () => {
+      stop = true;
+      window.clearInterval(id);
+    };
+  }, []);
 }
 
 /** @deprecated prefer useBdLeadsPage — kept for board/simple lists (first 500) */

@@ -172,9 +172,9 @@ export default function SettingsPage() {
         {user && canSyncHubspot(user.role) && (
           <Panel className="animate-rise delay-2" title="HubSpot">
             <p className="label mb-4 text-fg-muted">
-              New HubSpot contacts are pulled every day at 2:00 AM IST.
-              Use <span className="text-fg">Pull latest</span> to fetch now
-              without wiping existing leads.
+              All Leads pulls new and updated HubSpot contacts when you open
+              the page, then every minute while it stays open. Dates are the
+              HubSpot created time. Daily cron at 2:00 AM IST is a backup.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button

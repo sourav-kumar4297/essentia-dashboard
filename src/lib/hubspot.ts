@@ -27,6 +27,7 @@ const CONTACT_PROPERTIES = [
   "hs_analytics_last_url",
   "hs_latest_source",
   "hs_latest_source_data_1",
+  "createdate",
 ] as const;
 
 type HubspotContact = {
@@ -186,43 +187,58 @@ export async function fetchContactsPage(opts: {
   return { contacts, nextAfter: after ?? null };
 }
 
-/** Contacts created or edited since `sinceMs` (newest first). */
-export async function fetchContactsModifiedSince(opts: {
-  sinceMs: number;
+/** Newest contacts first (optional created / modified floor). */
+export async function fetchNewestContacts(opts: {
   after?: string | null;
   limit?: number;
+  createdSinceMs?: number;
+  modifiedSinceMs?: number;
 }): Promise<{ contacts: HubspotContact[]; nextAfter: string | null }> {
   const pageSize = Math.min(Math.max(opts.limit ?? 100, 1), 100);
+  const filters: Array<{
+    propertyName: string;
+    operator: string;
+    value: string;
+  }> = [];
+  if (opts.createdSinceMs) {
+    filters.push({
+      propertyName: "createdate",
+      operator: "GTE",
+      value: String(opts.createdSinceMs),
+    });
+  }
+  if (opts.modifiedSinceMs) {
+    filters.push({
+      propertyName: "lastmodifieddate",
+      operator: "GTE",
+      value: String(opts.modifiedSinceMs),
+    });
+  }
+  const body: Record<string, unknown> = {
+    sorts: [{ propertyName: "createdate", direction: "DESCENDING" }],
+    properties: CONTACT_PROPERTIES,
+    limit: pageSize,
+    after: opts.after || 0,
+  };
+  if (filters.length) body.filterGroups = [{ filters }];
+
   const data = await hubspotFetch<{
     results: HubspotContact[];
     paging?: { next?: { after: string } };
   }>("/crm/v3/objects/contacts/search", {
     method: "POST",
-    body: JSON.stringify({
-      filterGroups: [
-        {
-          filters: [
-            {
-              propertyName: "lastmodifieddate",
-              operator: "GTE",
-              value: String(opts.sinceMs),
-            },
-          ],
-        },
-      ],
-      sorts: [
-        { propertyName: "lastmodifieddate", direction: "DESCENDING" },
-      ],
-      properties: CONTACT_PROPERTIES,
-      limit: pageSize,
-      after: opts.after || 0,
-    }),
+    body: JSON.stringify(body),
   });
 
   return {
     contacts: data.results || [],
     nextAfter: data.paging?.next?.after ?? null,
   };
+}
+
+function hubspotCreatedAt(p: HubspotContact["properties"]): Date {
+  const d = p.createdate ? new Date(p.createdate) : new Date();
+  return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
 function toLeadRow(c: HubspotContact, createdById?: string) {
@@ -262,7 +278,43 @@ function toLeadRow(c: HubspotContact, createdById?: string) {
     hubspotId: c.id,
     notes: notes || "Imported from HubSpot",
     createdById: createdById ?? null,
+    createdAt: hubspotCreatedAt(p),
   };
+}
+
+type LeadRow = NonNullable<ReturnType<typeof toLeadRow>>;
+
+async function upsertLeadRows(rows: LeadRow[]) {
+  if (!rows.length) return { created: 0, updated: 0 };
+  const ids = rows.map((r) => r.hubspotId);
+  const existing = await prisma.lead.findMany({
+    where: { hubspotId: { in: ids } },
+    select: { hubspotId: true },
+  });
+  const have = new Set(existing.map((e) => e.hubspotId));
+  const created = rows.filter((r) => !have.has(r.hubspotId)).length;
+  for (let i = 0; i < rows.length; i += 10) {
+    const chunk = rows.slice(i, i + 10);
+    await prisma.$transaction(
+      chunk.map((row) =>
+        prisma.lead.upsert({
+          where: { hubspotId: row.hubspotId },
+          create: row as never,
+          update: {
+            name: row.name,
+            phone: row.phone,
+            email: row.email,
+            source: row.source,
+            location: row.location,
+            businessUnit: row.businessUnit,
+            notes: row.notes,
+            createdAt: row.createdAt,
+          },
+        }),
+      ),
+    );
+  }
+  return { created, updated: rows.length - created };
 }
 
 export type ChunkSyncResult = {
@@ -270,6 +322,7 @@ export type ChunkSyncResult = {
   message: string;
   fetched: number;
   created: number;
+  updated: number;
   skipped: number;
   done: boolean;
   after: string | null;
@@ -292,6 +345,7 @@ export async function syncHubspotChunk(opts: {
       message: "HUBSPOT_ACCESS_TOKEN is not configured in .env",
       fetched: 0,
       created: 0,
+      updated: 0,
       skipped: 0,
       done: true,
       after: null,
@@ -344,6 +398,7 @@ export async function syncHubspotChunk(opts: {
         : `Saved ${created} leads (batch). ${leadCount} total so far — continuing…`,
       fetched: contacts.length,
       created,
+      updated: 0,
       skipped,
       done,
       after: nextAfter,
@@ -357,6 +412,7 @@ export async function syncHubspotChunk(opts: {
       message,
       fetched: 0,
       created: 0,
+      updated: 0,
       skipped: 0,
       done: true,
       after: null,
@@ -366,12 +422,14 @@ export async function syncHubspotChunk(opts: {
 }
 
 /**
- * Pull contacts HubSpot changed in the last ~2 days. Inserts new leads only
- * (does not wipe the dashboard or overwrite pipeline status).
+ * Pull contacts created or edited in HubSpot recently.
+ * Upserts so new leads appear and existing contact fields/dates stay in sync.
+ * Does not overwrite pipeline status or assignment.
  */
 export async function syncRecentHubspotContacts(opts?: {
   createdById?: string;
   lookbackHours?: number;
+  changedOnly?: boolean;
 }): Promise<ChunkSyncResult> {
   if (!isHubspotConfigured()) {
     return {
@@ -379,6 +437,7 @@ export async function syncRecentHubspotContacts(opts?: {
       message: "HUBSPOT_ACCESS_TOKEN is not configured in .env",
       fetched: 0,
       created: 0,
+      updated: 0,
       skipped: 0,
       done: true,
       after: null,
@@ -386,19 +445,25 @@ export async function syncRecentHubspotContacts(opts?: {
     };
   }
 
-  const lookbackHours = opts?.lookbackHours ?? 48;
+  const lookbackHours = opts?.lookbackHours ?? 14 * 24;
   const sinceMs = Date.now() - lookbackHours * 60 * 60 * 1000;
+  const changedOnly = Boolean(opts?.changedOnly) || lookbackHours <= 6;
   let after: string | null = null;
   let fetched = 0;
   let created = 0;
+  let updated = 0;
   let skipped = 0;
 
   try {
     for (let i = 0; i < 50; i++) {
-      const page = await fetchContactsModifiedSince({ sinceMs, after });
+      const page = await fetchNewestContacts({
+        after,
+        createdSinceMs: changedOnly ? undefined : sinceMs,
+        modifiedSinceMs: changedOnly ? sinceMs : undefined,
+      });
       fetched += page.contacts.length;
 
-      const rows = [];
+      const rows: LeadRow[] = [];
       for (const c of page.contacts) {
         const row = toLeadRow(c, opts?.createdById);
         if (!row) {
@@ -408,14 +473,9 @@ export async function syncRecentHubspotContacts(opts?: {
         rows.push(row);
       }
 
-      if (rows.length) {
-        created += (
-          await prisma.lead.createMany({
-            data: rows as never,
-            skipDuplicates: true,
-          })
-        ).count;
-      }
+      const result = await upsertLeadRows(rows);
+      created += result.created;
+      updated += result.updated;
 
       after = page.nextAfter;
       if (!after || page.contacts.length === 0) break;
@@ -424,9 +484,10 @@ export async function syncRecentHubspotContacts(opts?: {
     const leadCount = await prisma.lead.count();
     return {
       ok: true,
-      message: `Pulled latest HubSpot contacts — ${created} new · ${leadCount} leads in dashboard`,
+      message: `HubSpot sync — ${created} new · ${updated} updated · ${leadCount} leads`,
       fetched,
       created,
+      updated,
       skipped,
       done: true,
       after: null,
@@ -440,6 +501,7 @@ export async function syncRecentHubspotContacts(opts?: {
       message,
       fetched,
       created,
+      updated,
       skipped,
       done: true,
       after: null,

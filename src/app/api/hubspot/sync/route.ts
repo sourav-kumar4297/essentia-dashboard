@@ -13,15 +13,13 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!canSyncHubspot(user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
   let body: {
     recent?: boolean;
     reset?: boolean;
     after?: string | null;
     limit?: number;
+    lookbackHours?: number;
+    changedOnly?: boolean;
   } = {};
   try {
     body = (await req.json()) as typeof body;
@@ -32,9 +30,14 @@ export async function POST(req: Request) {
   if (body.recent) {
     const result = await syncRecentHubspotContacts({
       createdById: user.id,
-      lookbackHours: 48,
+      lookbackHours: body.lookbackHours,
+      changedOnly: body.changedOnly,
     });
     return NextResponse.json(result, { status: result.ok ? 200 : 400 });
+  }
+
+  if (!canSyncHubspot(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const result = await syncHubspotChunk({

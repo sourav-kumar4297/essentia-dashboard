@@ -5,12 +5,14 @@ import { Plus } from "lucide-react";
 import { PageHeader, Panel, Stat, Button } from "@/components/ui";
 import { PlatformTabs } from "@/components/PlatformTabs";
 import { useLeadStats } from "@/lib/use-lead-stats";
+import { useHubspotLiveSync } from "@/lib/use-bd-leads";
 import { BD_STATUS_LABELS, type BdLeadStatus } from "@/lib/bd-types";
 import { clsx } from "clsx";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 
 export default function DashboardPage() {
-  const { stats, loading } = useLeadStats();
+  const { stats, loading, refresh } = useLeadStats();
+  useHubspotLiveSync(refresh);
   const total = stats?.total ?? 0;
   const channels = stats?.channels ?? [];
   const recent = stats?.recent ?? [];
@@ -182,9 +184,7 @@ export default function DashboardPage() {
                           {lead.businessUnit}
                         </span>
                         <span className="metric text-fg-dim">
-                          {formatDistanceToNow(new Date(lead.createdAt), {
-                            addSuffix: true,
-                          })}
+                          {format(new Date(lead.createdAt), "dd MMM yyyy, HH:mm")}
                         </span>
                       </div>
                     </Link>

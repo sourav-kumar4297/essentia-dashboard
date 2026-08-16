@@ -25,7 +25,7 @@ import { Button, Field, PageHeader, QualBadge, inputClass } from "@/components/u
 import { SuspenseWrap } from "@/components/SuspenseWrap";
 import { PlatformTabs } from "@/components/PlatformTabs";
 import { useAuth } from "@/lib/auth-context";
-import { useBdLeadsPage, type BdLeadRow } from "@/lib/use-bd-leads";
+import { useBdLeadsPage, useHubspotLiveSync, type BdLeadRow } from "@/lib/use-bd-leads";
 import {
   BD_STATUS_LABELS,
   type BdLeadStatus,
@@ -34,7 +34,7 @@ import {
 import { BD_SOURCE_OPTIONS } from "@/lib/bd-channels";
 import { canApproveReferrals, canAssignLeads } from "@/lib/rbac";
 import { clsx } from "clsx";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 
 const STATUSES: BdLeadStatus[] = [
   "NEW",
@@ -88,6 +88,7 @@ function LeadsInner() {
     status: statusFilter,
     q: queryApplied,
   });
+  useHubspotLiveSync(refresh);
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
 
@@ -190,7 +191,7 @@ function LeadsInner() {
                   "Status",
                   "Type",
                   "Owner",
-                  "Age",
+                  "Arrived",
                   "",
                 ].map((h) => (
                   <th
@@ -262,9 +263,7 @@ function LeadsInner() {
                       {l.assignedTo?.name ?? "—"}
                     </td>
                     <td className="metric whitespace-nowrap px-3 py-3.5 text-fg-dim">
-                      {formatDistanceToNow(new Date(l.createdAt), {
-                        addSuffix: true,
-                      })}
+                      {format(new Date(l.createdAt), "dd MMM yyyy, HH:mm")}
                     </td>
                     <td className="px-3 py-3.5">
                       <div className="flex justify-end gap-1">

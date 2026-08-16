@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Eye, Pencil } from "lucide-react";
 import { PageHeader, QualBadge } from "@/components/ui";
 import { PlatformTabs } from "@/components/PlatformTabs";
-import { useBdLeads, type BdLeadRow } from "@/lib/use-bd-leads";
+import { useBdLeads, useHubspotLiveSync, type BdLeadRow } from "@/lib/use-bd-leads";
 import { BD_STATUS_LABELS, type BdLeadStatus } from "@/lib/bd-types";
 import { clsx } from "clsx";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 
 const COLUMNS: { status: BdLeadStatus; title: string }[] = [
@@ -30,6 +30,7 @@ const ACTIVE_ORDER: BdLeadStatus[] = [
 
 export default function BoardPage() {
   const { leads, loading, refresh } = useBdLeads();
+  useHubspotLiveSync(refresh);
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -123,9 +124,7 @@ export default function BoardPage() {
                             }
                           />
                           <span className="metric text-fg-dim">
-                            {formatDistanceToNow(new Date(l.createdAt), {
-                              addSuffix: true,
-                            })}
+                            {format(new Date(l.createdAt), "dd MMM yyyy")}
                           </span>
                         </div>
                         {l.assignedTo && (
