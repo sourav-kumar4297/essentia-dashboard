@@ -62,7 +62,14 @@ export function useLeadTotal() {
 export function useBdLeadsPage(
   page: number,
   pageSize: number,
-  opts?: { status?: string; q?: string },
+  opts?: {
+    status?: string;
+    q?: string;
+    sort?: string;
+    since?: string;
+    source?: string;
+    qualification?: string;
+  },
 ) {
   const [leads, setLeads] = useState<BdLeadRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -82,6 +89,14 @@ export function useBdLeadsPage(
         params.set("status", opts.status);
       }
       if (opts?.q?.trim()) params.set("q", opts.q.trim());
+      if (opts?.sort && opts.sort !== "newest") params.set("sort", opts.sort);
+      if (opts?.since && opts.since !== "all") params.set("since", opts.since);
+      if (opts?.source && opts.source !== "all") {
+        params.set("source", opts.source);
+      }
+      if (opts?.qualification && opts.qualification !== "all") {
+        params.set("qualification", opts.qualification);
+      }
 
       const res = await fetch(`/api/leads?${params}`, {
         credentials: "include",
@@ -98,7 +113,16 @@ export function useBdLeadsPage(
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, opts?.status, opts?.q]);
+  }, [
+    page,
+    pageSize,
+    opts?.status,
+    opts?.q,
+    opts?.sort,
+    opts?.since,
+    opts?.source,
+    opts?.qualification,
+  ]);
 
   useEffect(() => {
     void refresh();

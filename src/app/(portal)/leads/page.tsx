@@ -46,7 +46,11 @@ const STATUSES: BdLeadStatus[] = [
   "HOLD",
 ];
 
+const QUAL_TYPES = ["Hot", "Warm", "Cold", "Unqualified"] as const;
 const PAGE_SIZES = [10, 25, 50, 100];
+
+const selectClass =
+  "max-w-[160px] cursor-pointer border-0 bg-transparent py-2.5 pr-1 font-body text-[13px] font-light text-fg outline-none";
 
 export default function LeadsPage() {
   return (
@@ -75,6 +79,10 @@ function LeadsInner() {
   const [statusFilter, setStatusFilter] = useState<"all" | BdLeadStatus>(
     initialStatus,
   );
+  const [sortBy, setSortBy] = useState("newest");
+  const [sinceFilter, setSinceFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [detailId, setDetailId] = useState<string | null>(search.get("focus"));
@@ -87,6 +95,10 @@ function LeadsInner() {
   const { leads, total, loading, refresh } = useBdLeadsPage(page, pageSize, {
     status: statusFilter,
     q: queryApplied,
+    sort: sortBy,
+    since: sinceFilter,
+    source: platformFilter,
+    qualification: typeFilter,
   });
   useHubspotLiveSync(refresh);
 
@@ -147,8 +159,8 @@ function LeadsInner() {
 
       <PlatformTabs />
 
-      <div className="mb-4 flex w-full items-stretch border border-line bg-surface">
-        <div className="relative min-w-0 flex-1">
+      <div className="mb-4 flex w-full min-w-0 flex-wrap items-stretch border border-line bg-surface">
+        <div className="relative min-w-[180px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-muted" />
           <input
             className="w-full border-0 bg-transparent py-2.5 pl-9 pr-3 font-body text-[13px] font-light text-fg outline-none placeholder:text-fg-dim"
@@ -157,41 +169,96 @@ function LeadsInner() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <div className="flex shrink-0 items-center border-l border-line">
-          <label className="label flex items-center gap-2 whitespace-nowrap px-3 text-fg-muted">
-            <span className="hidden sm:inline">Status</span>
-            <select
-              className="max-w-[180px] cursor-pointer border-0 bg-transparent py-2.5 pr-1 font-body text-[13px] font-light text-fg outline-none"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as "all" | BdLeadStatus);
-                setPage(1);
-              }}
-            >
-              <option value="all">All statuses</option>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {BD_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <FilterSelect
+          label="Sort"
+          value={sortBy}
+          onChange={(v) => {
+            setSortBy(v);
+            setPage(1);
+          }}
+          options={[
+            ["newest", "Newest first"],
+            ["oldest", "Oldest first"],
+            ["az", "A–Z"],
+            ["za", "Z–A"],
+          ]}
+        />
+        <FilterSelect
+          label="Date"
+          value={sinceFilter}
+          onChange={(v) => {
+            setSinceFilter(v);
+            setPage(1);
+          }}
+          options={[
+            ["all", "All time"],
+            ["today", "Today"],
+            ["7d", "Last 7 days"],
+            ["30d", "Last 30 days"],
+            ["90d", "Last 90 days"],
+          ]}
+        />
+        <FilterSelect
+          label="Platform"
+          value={platformFilter}
+          onChange={(v) => {
+            setPlatformFilter(v);
+            setPage(1);
+          }}
+          options={[
+            ["all", "All platforms"],
+            ...BD_SOURCE_OPTIONS.map((s) => [s, s] as [string, string]),
+          ]}
+        />
+        <FilterSelect
+          label="Type"
+          value={typeFilter}
+          onChange={(v) => {
+            setTypeFilter(v);
+            setPage(1);
+          }}
+          options={[
+            ["all", "All types"],
+            ...QUAL_TYPES.map((t) => [t, t] as [string, string]),
+          ]}
+        />
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v as "all" | BdLeadStatus);
+            setPage(1);
+          }}
+          options={[
+            ["all", "All statuses"],
+            ...STATUSES.map((s) => [s, BD_STATUS_LABELS[s]] as [string, string]),
+          ]}
+        />
       </div>
 
-      <div className="w-full overflow-hidden border border-line bg-surface">
-        <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-left">
+      <div className="min-w-0 w-full border border-line bg-surface">
+        <div className="min-w-0 w-full overflow-x-auto">
+          <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
+            <colgroup>
+              <col className="w-[22%]" />
+              <col className="w-[14%]" />
+              <col className="w-[7%]" />
+              <col className="w-[16%]" />
+              <col className="w-[13%]" />
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+              <col className="w-[4%]" />
+            </colgroup>
             <thead>
               <tr className="border-b border-line">
                 {[
                   "Client",
+                  "Arrived",
                   "Unit",
                   "Source",
                   "Status",
                   "Type",
                   "Owner",
-                  "Arrived",
                   "",
                 ].map((h) => (
                   <th
@@ -231,10 +298,18 @@ function LeadsInner() {
                     onClick={() => setDetailId(l.id)}
                     className="cursor-pointer border-b border-line transition last:border-b-0 hover:bg-surface-hover"
                   >
-                    <td className="px-3 py-3.5">
+                    <td className="min-w-0 px-3 py-3.5">
                       <p className="label truncate text-fg">{l.name}</p>
                       <p className="metric mt-0.5 truncate text-fg-dim">
                         {l.phone}
+                      </p>
+                    </td>
+                    <td className="px-3 py-3.5">
+                      <p className="metric whitespace-nowrap text-fg">
+                        {format(new Date(l.createdAt), "dd MMM yyyy")}
+                      </p>
+                      <p className="metric mt-0.5 text-fg-dim">
+                        {format(new Date(l.createdAt), "HH:mm")}
                       </p>
                     </td>
                     <td className="px-3 py-3.5">
@@ -242,8 +317,8 @@ function LeadsInner() {
                         {l.businessUnit}
                       </span>
                     </td>
-                    <td className="label truncate px-3 py-3.5 text-fg-muted">
-                      {l.source}
+                    <td className="min-w-0 px-3 py-3.5">
+                      <p className="label truncate text-fg-muted">{l.source}</p>
                     </td>
                     <td className="px-3 py-3.5">
                       <StatusPill status={l.status} />
@@ -259,13 +334,12 @@ function LeadsInner() {
                         }
                       />
                     </td>
-                    <td className="label truncate px-3 py-3.5 text-fg-muted">
-                      {l.assignedTo?.name ?? "—"}
+                    <td className="min-w-0 px-3 py-3.5">
+                      <p className="label truncate text-fg-muted">
+                        {l.assignedTo?.name ?? "—"}
+                      </p>
                     </td>
-                    <td className="metric whitespace-nowrap px-3 py-3.5 text-fg-dim">
-                      {format(new Date(l.createdAt), "dd MMM yyyy, HH:mm")}
-                    </td>
-                    <td className="px-3 py-3.5">
+                    <td className="w-20 px-2 py-3.5">
                       <div className="flex justify-end gap-1">
                         <IconBtn
                           label="View"
@@ -406,6 +480,38 @@ function LeadsInner() {
           />
         </LeadSidePanel>
       )}
+    </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <div className="flex shrink-0 items-center border-t border-line sm:border-l sm:border-t-0">
+      <label className="label flex items-center gap-2 whitespace-nowrap px-3 text-fg-muted">
+        <span className="hidden lg:inline">{label}</span>
+        <select
+          className={selectClass}
+          value={value}
+          aria-label={label}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {options.map(([id, text]) => (
+            <option key={id} value={id}>
+              {text}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }

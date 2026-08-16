@@ -23,6 +23,10 @@ export async function GET(req: Request) {
   const offset = Math.max(Number(url.searchParams.get("offset") || 0), 0);
   const status = url.searchParams.get("status");
   const q = url.searchParams.get("q")?.trim().toLowerCase();
+  const source = url.searchParams.get("source")?.trim();
+  const qualification = url.searchParams.get("qualification")?.trim();
+  const since = url.searchParams.get("since")?.trim();
+  const sort = url.searchParams.get("sort")?.trim() || "newest";
 
   const roleWhere = canViewAllLeads(user.role)
     ? {}
@@ -33,6 +37,34 @@ export async function GET(req: Request) {
   const filters: Record<string, unknown>[] = [];
   if (Object.keys(roleWhere).length) filters.push(roleWhere);
   if (status && status !== "all") filters.push({ status });
+  if (qualification && qualification !== "all") {
+    filters.push({ qualification });
+  }
+  if (source && source !== "all") {
+    if (source === "Website") {
+      filters.push({
+        OR: [
+          { source: "Website" },
+          { source: { startsWith: "Website" } },
+        ],
+      });
+    } else {
+      filters.push({ source });
+    }
+  }
+  if (since && since !== "all") {
+    const days =
+      since === "today" ? 1 : since === "7d" ? 7 : since === "30d" ? 30 : since === "90d" ? 90 : 0;
+    if (days > 0) {
+      const start = new Date();
+      if (since === "today") {
+        start.setHours(0, 0, 0, 0);
+      } else {
+        start.setDate(start.getDate() - days);
+      }
+      filters.push({ createdAt: { gte: start } });
+    }
+  }
   if (q) {
     filters.push({
       OR: [
@@ -53,11 +85,20 @@ export async function GET(req: Request) {
         ? filters[0]
         : { AND: filters };
 
+  const orderBy =
+    sort === "az"
+      ? { name: "asc" as const }
+      : sort === "za"
+        ? { name: "desc" as const }
+        : sort === "oldest"
+          ? { createdAt: "asc" as const }
+          : { createdAt: "desc" as const };
+
   const [leads, total] = await Promise.all([
     prisma.lead.findMany({
       where: where as never,
       include: leadInclude,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       take: limit,
       skip: offset,
     }),
