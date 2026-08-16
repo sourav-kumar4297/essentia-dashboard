@@ -51,14 +51,16 @@ HUBSPOT_ACCESS_TOKEN="pat-xxxxx"
 ```
 
 6. Restart `npm run dev`
-7. Admin → **Settings** → **Sync HubSpot contacts**
+7. Admin → **Settings** → **Pull latest** (or wait for the daily 2:00 AM IST cron)
+
+On Vercel, set `HUBSPOT_ACCESS_TOKEN` and `CRON_SECRET`. The cron at `/api/hubspot/cron` pulls contacts changed in the last 48 hours and inserts new leads only.
 
 ---
 
 ## What our app does today
 | Direction | Status |
 |-----------|--------|
-| HubSpot → Dashboard (contacts) | **Built** — Sync button |
+| HubSpot → Dashboard (contacts) | **Daily cron** + Settings “Pull latest” |
 | Dashboard → HubSpot (create/update) | **Not built yet** — key will be ready when we add it |
 
 If you want **write-back** (new portal leads push to HubSpot), say so and we’ll add that next.

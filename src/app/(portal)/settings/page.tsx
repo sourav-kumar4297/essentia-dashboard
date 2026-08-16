@@ -24,6 +24,7 @@ export default function SettingsPage() {
   }, [toast]);
 
   async function syncChunk(body: {
+    recent?: boolean;
     reset?: boolean;
     after?: string | null;
     limit?: number;
@@ -43,6 +44,19 @@ export default function SettingsPage() {
       created?: number;
       leadCount?: number;
     };
+  }
+
+  async function pullLatest() {
+    setHubspotBusy(true);
+    setHubspotProgress("");
+    try {
+      const result = await syncChunk({ recent: true });
+      setToast(result.message || result.error || "Pull finished.");
+    } catch {
+      setToast("HubSpot pull failed.");
+    } finally {
+      setHubspotBusy(false);
+    }
   }
 
   async function syncHubspot() {
@@ -158,27 +172,32 @@ export default function SettingsPage() {
         {user && canSyncHubspot(user.role) && (
           <Panel className="animate-rise delay-2" title="HubSpot">
             <p className="label mb-4 text-fg-muted">
-              Saves the <span className="text-fg">first 200</span> contacts
-              immediately, then imports the rest in the background so the UI
-              stays usable.
+              New HubSpot contacts are pulled every day at 2:00 AM IST.
+              Use <span className="text-fg">Pull latest</span> to fetch now
+              without wiping existing leads.
             </p>
-            <Button
-              variant="secondary"
-              disabled={hubspotBusy || hubspotBg}
-              onClick={() => void syncHubspot()}
-            >
-              <RefreshCw
-                className={clsx(
-                  "h-3.5 w-3.5",
-                  (hubspotBusy || hubspotBg) && "animate-spin",
-                )}
-              />
-              {hubspotBusy
-                ? "Saving first 200…"
-                : hubspotBg
-                  ? "Syncing rest in background…"
-                  : "Sync HubSpot contacts"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                disabled={hubspotBusy || hubspotBg}
+                onClick={() => void pullLatest()}
+              >
+                <RefreshCw
+                  className={clsx(
+                    "h-3.5 w-3.5",
+                    hubspotBusy && !hubspotBg && "animate-spin",
+                  )}
+                />
+                {hubspotBusy && !hubspotBg ? "Pulling…" : "Pull latest"}
+              </Button>
+              <Button
+                variant="ghost"
+                disabled={hubspotBusy || hubspotBg}
+                onClick={() => void syncHubspot()}
+              >
+                {hubspotBg ? "Re-importing…" : "Full re-import"}
+              </Button>
+            </div>
             {(toast || hubspotProgress) && (
               <p className="label mt-4 border border-line px-3 py-2 text-fg-muted">
                 {hubspotProgress || toast}

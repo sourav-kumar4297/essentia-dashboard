@@ -134,11 +134,13 @@ function contactName(p: HubspotContact["properties"]): string {
   return "HubSpot contact";
 }
 
-async function hubspotGet<T>(path: string): Promise<T> {
+async function hubspotFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${HUBSPOT_API}${path}`, {
+    ...init,
     headers: {
       Authorization: `Bearer ${token()}`,
       "Content-Type": "application/json",
+      ...init?.headers,
     },
     cache: "no-store",
   });
@@ -146,6 +148,10 @@ async function hubspotGet<T>(path: string): Promise<T> {
     throw new Error(`HubSpot ${res.status}: ${(await res.text()).slice(0, 400)}`);
   }
   return res.json() as Promise<T>;
+}
+
+async function hubspotGet<T>(path: string): Promise<T> {
+  return hubspotFetch<T>(path);
 }
 
 /** Fetch up to `limit` contacts starting after cursor (HubSpot max 100/page). */
@@ -178,6 +184,45 @@ export async function fetchContactsPage(opts: {
   }
 
   return { contacts, nextAfter: after ?? null };
+}
+
+/** Contacts created or edited since `sinceMs` (newest first). */
+export async function fetchContactsModifiedSince(opts: {
+  sinceMs: number;
+  after?: string | null;
+  limit?: number;
+}): Promise<{ contacts: HubspotContact[]; nextAfter: string | null }> {
+  const pageSize = Math.min(Math.max(opts.limit ?? 100, 1), 100);
+  const data = await hubspotFetch<{
+    results: HubspotContact[];
+    paging?: { next?: { after: string } };
+  }>("/crm/v3/objects/contacts/search", {
+    method: "POST",
+    body: JSON.stringify({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: "lastmodifieddate",
+              operator: "GTE",
+              value: String(opts.sinceMs),
+            },
+          ],
+        },
+      ],
+      sorts: [
+        { propertyName: "lastmodifieddate", direction: "DESCENDING" },
+      ],
+      properties: CONTACT_PROPERTIES,
+      limit: pageSize,
+      after: opts.after || 0,
+    }),
+  });
+
+  return {
+    contacts: data.results || [],
+    nextAfter: data.paging?.next?.after ?? null,
+  };
 }
 
 function toLeadRow(c: HubspotContact, createdById?: string) {
@@ -320,6 +365,89 @@ export async function syncHubspotChunk(opts: {
   }
 }
 
+/**
+ * Pull contacts HubSpot changed in the last ~2 days. Inserts new leads only
+ * (does not wipe the dashboard or overwrite pipeline status).
+ */
+export async function syncRecentHubspotContacts(opts?: {
+  createdById?: string;
+  lookbackHours?: number;
+}): Promise<ChunkSyncResult> {
+  if (!isHubspotConfigured()) {
+    return {
+      ok: false,
+      message: "HUBSPOT_ACCESS_TOKEN is not configured in .env",
+      fetched: 0,
+      created: 0,
+      skipped: 0,
+      done: true,
+      after: null,
+      leadCount: 0,
+    };
+  }
+
+  const lookbackHours = opts?.lookbackHours ?? 48;
+  const sinceMs = Date.now() - lookbackHours * 60 * 60 * 1000;
+  let after: string | null = null;
+  let fetched = 0;
+  let created = 0;
+  let skipped = 0;
+
+  try {
+    for (let i = 0; i < 50; i++) {
+      const page = await fetchContactsModifiedSince({ sinceMs, after });
+      fetched += page.contacts.length;
+
+      const rows = [];
+      for (const c of page.contacts) {
+        const row = toLeadRow(c, opts?.createdById);
+        if (!row) {
+          skipped += 1;
+          continue;
+        }
+        rows.push(row);
+      }
+
+      if (rows.length) {
+        created += (
+          await prisma.lead.createMany({
+            data: rows as never,
+            skipDuplicates: true,
+          })
+        ).count;
+      }
+
+      after = page.nextAfter;
+      if (!after || page.contacts.length === 0) break;
+    }
+
+    const leadCount = await prisma.lead.count();
+    return {
+      ok: true,
+      message: `Pulled latest HubSpot contacts — ${created} new · ${leadCount} leads in dashboard`,
+      fetched,
+      created,
+      skipped,
+      done: true,
+      after: null,
+      leadCount,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "HubSpot sync failed";
+    console.error("[HubSpot]", message);
+    return {
+      ok: false,
+      message,
+      fetched,
+      created,
+      skipped,
+      done: true,
+      after: null,
+      leadCount: 0,
+    };
+  }
+}
+
 /** Full sync (blocking) — prefer chunked API from UI */
 export async function syncAllHubspotContactsToLeads(opts?: {
   createdById?: string;
@@ -368,7 +496,7 @@ export async function syncAllHubspotContactsToLeads(opts?: {
 }
 
 export async function pullRecentContacts() {
-  return syncAllHubspotContactsToLeads();
+  return syncRecentHubspotContacts();
 }
 
 export async function syncLeadFromHubspot(_hubspotId: string) {
