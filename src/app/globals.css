@@ -139,7 +139,15 @@ select option {
 
 .nav-link {
   position: relative;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.12s ease,
+    opacity 0.18s ease;
+}
+
+.nav-link:active {
+  transform: scale(0.98);
 }
 
 .nav-link-active {
@@ -155,6 +163,65 @@ select option {
   bottom: 8px;
   width: 2px;
   background: var(--fg);
+}
+
+.nav-link-pending {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  color: var(--fg);
+}
+
+.route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  height: 2px;
+  pointer-events: none;
+  background: transparent;
+}
+
+.route-progress-bar {
+  height: 100%;
+  background: var(--fg);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--fg) 45%, transparent);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.route-progress.is-done .route-progress-bar {
+  opacity: 0;
+  transition:
+    width 0.18s ease,
+    opacity 0.22s ease 0.04s;
+}
+
+.page-enter {
+  animation: page-enter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bar-fill {
+  transform-origin: left center;
+  animation: bar-grow 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 @keyframes rise-in {
@@ -205,11 +272,13 @@ select option {
   }
 }
 
+/* YouTube / Instagram bone — no border, soft fill, sliding highlight */
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
 }
 
 .skeleton::after {
@@ -219,11 +288,15 @@ select option {
   transform: translateX(-100%);
   background: linear-gradient(
     90deg,
-    transparent,
-    color-mix(in srgb, var(--fg) 6%, transparent),
-    transparent
+    transparent 0%,
+    color-mix(in srgb, var(--fg) 14%, transparent) 50%,
+    transparent 100%
   );
-  animation: shimmer 1.4s infinite;
+  animation: shimmer 1.15s ease-in-out infinite;
+}
+
+.skeleton-circle {
+  border-radius: 999px;
 }
 
 /* Brand intro loader */
@@ -257,6 +330,15 @@ select option {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes loader-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
   }
 }
 
@@ -300,6 +382,19 @@ select option {
 }
 .delay-3 {
   animation-delay: 0.18s;
+}
+.delay-4 {
+  animation-delay: 0.24s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-fade,
+  .page-enter,
+  .bar-fill,
+  .skeleton::after {
+    animation: none !important;
+  }
 }
 
 @media print {

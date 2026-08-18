@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Calculator,
   FileText,
+  Loader2,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -84,6 +85,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [shake, setShake] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
   const [slide, setSlide] = useState(0);
 
   useEffect(() => {
@@ -127,6 +129,7 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
+    setStatus("Signing in…");
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -140,14 +143,19 @@ export default function LoginPage() {
       const data = (await res.json()) as { error?: string; user?: AuthUser };
       if (!res.ok || !data.user) {
         fail(data.error || "Invalid username or password.");
+        setLoading(false);
+        setStatus("");
         return;
       }
+      setStatus("Opening dashboard…");
       applyUser(data.user);
       router.replace("/pipeline");
+      // Keep the overlay until this page unmounts so the form doesn't
+      // look idle while the dashboard route is compiling.
     } catch {
       fail("Network error. Try again.");
-    } finally {
       setLoading(false);
+      setStatus("");
     }
   }
 
@@ -155,7 +163,28 @@ export default function LoginPage() {
   const ActiveIcon = active.icon;
 
   return (
-    <div className="flex min-h-screen bg-bg text-fg">
+    <div className="relative flex min-h-screen bg-bg text-fg">
+      {loading && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-bg/70"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="flex min-w-[240px] flex-col items-center border border-line bg-surface px-8 py-7">
+            <Loader2
+              className="h-5 w-5 animate-spin text-fg"
+              strokeWidth={1.5}
+            />
+            <p className="label mt-4 tracking-[0.18em] text-fg uppercase">
+              {status || "Signing in…"}
+            </p>
+            <p className="metric mt-2 text-center text-fg-muted">
+              Waiting for the server — this can take a few seconds.
+            </p>
+          </div>
+        </div>
+      )}
       <aside
         ref={brandRef}
         className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-black p-10 text-white lg:flex xl:p-14"
@@ -163,29 +192,26 @@ export default function LoginPage() {
         <div
           ref={glowRef}
           aria-hidden
-          className="pointer-events-none absolute left-0 top-0 h-[400px] w-[400px] rounded-full transition-transform duration-300 ease-out"
+          className="pointer-events-none absolute left-0 top-0 h-[400px] w-[400px] rounded-full"
           style={{
             background:
               "radial-gradient(closest-side, rgba(255,255,255,0.07), transparent)",
           }}
         />
-        <div className="animate-rise">
+        <div className="relative z-10">
           <Logo variant="white" height={22} />
           <p className="label mt-3 tracking-[0.2em] uppercase text-white/50">
-            BD Portal · Lead to handover
+            Design · Build · Furniture
           </p>
         </div>
 
         <div className="relative z-10">
           <h2 className="heading text-[34px] leading-[1.15] text-white xl:text-[40px]">
-            From first enquiry
+            The essentia
             <br />
-            to CRM handover.
+            dashboard.
           </h2>
-          <div
-            key={slide}
-            className="mt-8 flex items-start gap-4 border border-white/15 bg-white/[0.04] p-5 animate-rise"
-          >
+          <div className="mt-8 flex items-start gap-4 border border-white/15 bg-white/[0.04] p-5">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-white/25">
               <ActiveIcon className="h-4 w-4" strokeWidth={1.5} />
             </span>
@@ -219,9 +245,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="w-full max-w-sm animate-rise">
+        <div className="w-full max-w-sm">
           <p className="label tracking-[0.18em] text-fg-muted uppercase">
-            Internal portal
+            essentia dashboard
           </p>
           <h1 className="heading mt-2 text-[30px]">{greeting()}</h1>
           <p className="label mt-2 text-fg-muted">
@@ -232,6 +258,7 @@ export default function LoginPage() {
           <form
             key={`login-${shake}`}
             onSubmit={signIn}
+            aria-busy={loading}
             className={clsx("mt-8 space-y-4", shake > 0 && "animate-shake")}
           >
             <Field label="Username">
@@ -243,6 +270,7 @@ export default function LoginPage() {
                 placeholder="admin"
                 autoComplete="username"
                 autoFocus
+                disabled={loading}
               />
             </Field>
             <Field label="Password">
@@ -253,6 +281,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="current-password"
+                disabled={loading}
               />
             </Field>
             {error && (
@@ -263,17 +292,17 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="group inline-flex w-full items-center justify-center gap-2 bg-accent px-4 py-3 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-accent-fg transition hover:opacity-90 disabled:opacity-60"
+              className="group inline-flex w-full items-center justify-center gap-2 bg-accent px-4 py-3 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-accent-fg hover:opacity-90 disabled:opacity-60"
             >
               {loading ? (
-                "Signing in…"
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
+                  {status || "Signing in…"}
+                </>
               ) : (
                 <>
                   Enter portal
-                  <ArrowRight
-                    className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1"
-                    strokeWidth={1.5}
-                  />
+                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </>
               )}
             </button>
@@ -284,7 +313,8 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={fillDemo}
-              className="mt-2 w-full border border-line bg-surface px-3 py-2.5 text-left transition hover:border-line-strong hover:bg-surface-hover"
+              disabled={loading}
+              className="mt-2 w-full border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong hover:bg-surface-hover disabled:opacity-50"
             >
               <p className="label text-fg">admin</p>
               <p className="metric mt-0.5 text-fg-dim">

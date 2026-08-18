@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
+import { createSession, ensureUser, verifyOtp } from "@/lib/session";
 import {
-  createSession,
-  ensureUser,
-  verifyOtp,
-} from "@/lib/session";
+  isAllowedLoginEmail,
+  LOGIN_EMAIL_HINT,
+  normalizeEmail,
+} from "@/lib/allowed-email";
 import { SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/bd-types";
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { email?: string; code?: string };
-    const email = body.email?.trim().toLowerCase();
+    const email = normalizeEmail(body.email ?? "");
     const code = body.code?.trim();
     if (!email || !code) {
       return NextResponse.json(
         { error: "Email and code are required." },
         { status: 400 },
       );
+    }
+
+    if (!isAllowedLoginEmail(email)) {
+      return NextResponse.json({ error: LOGIN_EMAIL_HINT }, { status: 403 });
     }
 
     const ok = await verifyOtp(email, code);
@@ -27,7 +32,7 @@ export async function POST(req: Request) {
     }
 
     const user = await ensureUser(email);
-    const token = await createSession(user.id);
+    const token = await createSession(user);
 
     const res = NextResponse.json({
       ok: true,

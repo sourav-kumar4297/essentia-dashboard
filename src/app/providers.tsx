@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { ProfileProvider } from "@/lib/profile";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGate } from "@/components/AuthGate";
+import { NavProgressProvider } from "@/components/RouteProgress";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -12,7 +13,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <ProfileProvider>
           <PortalProvider>
-            <AuthGate>{children}</AuthGate>
+            <NavProgressProvider>
+              <AuthGate>{children}</AuthGate>
+            </NavProgressProvider>
           </PortalProvider>
         </ProfileProvider>
       </AuthProvider>

@@ -9,10 +9,7 @@ import {
   Inbox,
   GitBranch,
   Radio,
-  FileText,
   Calculator,
-  MessagesSquare,
-  Handshake,
   LogOut,
   Menu,
   X,
@@ -25,15 +22,17 @@ import {
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
+import { NotificationsMenu } from "./NotificationsMenu";
 import { useAuth } from "@/lib/auth-context";
 import { useLeadTotal } from "@/lib/use-bd-leads";
 import { useTheme } from "@/lib/theme";
+import { useNavProgress } from "@/components/RouteProgress";
 
 const COLLAPSE_KEY = "essentia_sidebar_collapsed_v1";
 
-const NAV = [
+const MAIN_NAV = [
   {
-    group: "Lead platform",
+    group: "",
     items: [
       {
         href: "/pipeline",
@@ -65,12 +64,6 @@ const NAV = [
     group: "Tools",
     items: [
       {
-        href: "/company-profile",
-        label: "Profile Generator",
-        hint: "Company profile",
-        icon: FileText,
-      },
-      {
         href: "/proposals",
         label: "Fee Configurator",
         hint: "Design fee proposal",
@@ -78,39 +71,20 @@ const NAV = [
       },
     ],
   },
+] as const;
+
+const ACCOUNT_NAV = [
   {
-    group: "Journey",
-    items: [
-      {
-        href: "/consultation",
-        label: "Consultation",
-        hint: "Discovery capture",
-        icon: MessagesSquare,
-      },
-      {
-        href: "/closing",
-        label: "Closing",
-        hint: "Order · handoff",
-        icon: Handshake,
-      },
-    ],
+    href: "/profile",
+    label: "Profile",
+    hint: "Your details",
+    icon: UserRound,
   },
   {
-    group: "Account",
-    items: [
-      {
-        href: "/profile",
-        label: "Profile",
-        hint: "Your details",
-        icon: UserRound,
-      },
-      {
-        href: "/settings",
-        label: "Settings",
-        hint: "Preferences",
-        icon: Settings,
-      },
-    ],
+    href: "/settings",
+    label: "Settings",
+    hint: "Preferences",
+    icon: Settings,
   },
 ] as const;
 
@@ -120,6 +94,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { total: leadTotal } = useLeadTotal();
   const { user, logout } = useAuth();
   const { theme } = useTheme();
+  const { pendingHref, startNav } = useNavProgress();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -154,13 +129,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navBody = (opts: { compact: boolean; onNavigate?: () => void }) => {
     const { compact, onNavigate } = opts;
     return (
-      <>
-        <div
-          className={clsx(
-            "border-b border-line",
-            compact ? "px-2 pb-4 pt-5" : "px-5 pb-5 pt-6",
-          )}
-        >
+      <div className="flex h-full min-h-0 flex-col justify-between">
+        <div className="min-h-0">
+          <div
+            className={clsx(
+              "border-b border-line",
+              compact ? "px-2 pb-4 pt-5" : "px-5 pb-5 pt-6",
+            )}
+          >
           <div
             className={clsx(
               "flex items-center",
@@ -169,7 +145,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Link
               href="/pipeline"
-              onClick={onNavigate}
+              onClick={() => {
+                startNav("/pipeline");
+                onNavigate?.();
+              }}
               className={clsx(compact && "flex justify-center")}
               title="essentia"
             >
@@ -194,26 +173,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
           {!compact && (
-            <>
-              <p className="label mt-5 tracking-[0.18em] text-fg-muted uppercase">
-                Client Advisory
-              </p>
-              <p className="heading mt-1.5 text-[17px]">
-                Lead Management Platform
-              </p>
-            </>
+            <p className="heading mt-5 text-[17px]">
+              Lead Management Platform
+            </p>
           )}
         </div>
 
         <nav
           className={clsx(
-            "no-scrollbar flex-1 space-y-5 overflow-y-auto pb-4",
+            "no-scrollbar space-y-5 overflow-y-auto pb-4",
             compact ? "px-1.5" : "px-2.5",
           )}
         >
-          {NAV.map((section) => (
-            <div key={section.group}>
-              {!compact && (
+          {MAIN_NAV.map((section) => (
+            <div key={section.group || "main"}>
+              {!compact && section.group && (
                 <p className="label mb-1.5 px-2.5 tracking-[0.18em] text-fg-dim uppercase">
                   {section.group}
                 </p>
@@ -225,6 +199,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       ? pathname === "/pipeline"
                       : pathname === item.href ||
                         pathname.startsWith(`${item.href}/`);
+                  const pending =
+                    !active && pendingHref.split("?")[0] === item.href;
                   const Icon = item.icon;
                   const leadCount =
                     item.href === "/leads" ? leadTotal : null;
@@ -233,18 +209,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <Link
                         href={item.href}
                         onClick={() => {
+                          startNav(item.href);
                           setProfileMenuOpen(false);
                           onNavigate?.();
                         }}
                         title={compact ? item.label : undefined}
                         className={clsx(
-                          "nav-link relative z-10 flex items-center transition",
+                          "nav-link relative z-10 flex items-center",
                           compact
                             ? "justify-center px-1 py-2.5"
                             : "gap-3 px-2.5 py-2.5",
                           active
                             ? "nav-link-active"
-                            : "text-fg-muted hover:bg-surface-hover hover:text-fg",
+                            : pending
+                              ? "nav-link-pending"
+                              : "text-fg-muted hover:bg-surface-hover hover:text-fg",
                         )}
                       >
                         <span
@@ -280,6 +259,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
+        </div>
 
         <div
           className={clsx(
@@ -299,12 +279,72 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           )}
 
+          {!compact && (
+            <p className="label px-1 pb-1 tracking-[0.18em] text-fg-dim uppercase">
+              Account
+            </p>
+          )}
+          <ul className="space-y-0.5">
+            {ACCOUNT_NAV.map((item) => {
+              const active =
+                pathname === item.href ||
+                pathname.startsWith(`${item.href}/`);
+              const pending =
+                !active && pendingHref.split("?")[0] === item.href;
+              const Icon = item.icon;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => {
+                      startNav(item.href);
+                      setProfileMenuOpen(false);
+                      onNavigate?.();
+                    }}
+                    title={compact ? item.label : undefined}
+                    className={clsx(
+                      "nav-link relative z-10 flex items-center",
+                      compact
+                        ? "justify-center px-1 py-2.5"
+                        : "gap-3 px-2.5 py-2.5",
+                      active
+                        ? "nav-link-active"
+                        : pending
+                          ? "nav-link-pending"
+                          : "text-fg-muted hover:bg-surface-hover hover:text-fg",
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "flex h-8 w-8 shrink-0 items-center justify-center border",
+                        active
+                          ? "border-line-strong bg-bg/50"
+                          : "border-line",
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </span>
+                    {!compact && (
+                      <span className="min-w-0 flex-1">
+                        <span className="label block text-fg">{item.label}</span>
+                        <span className="metric block text-fg-dim">
+                          {item.hint}
+                        </span>
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
           <div className="relative">
             {profileMenuOpen && (
               <div className="absolute bottom-[calc(100%+8px)] left-0 z-50 w-full min-w-[200px] max-w-[240px] border border-line bg-bg shadow-xl">
                 <Link
                   href="/profile"
                   onClick={() => {
+                    startNav("/profile");
                     setProfileMenuOpen(false);
                     onNavigate?.();
                   }}
@@ -316,6 +356,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href="/settings"
                   onClick={() => {
+                    startNav("/settings");
                     setProfileMenuOpen(false);
                     onNavigate?.();
                   }}
@@ -373,7 +414,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </div>
-      </>
+      </div>
     );
   };
 
@@ -462,11 +503,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <Link
               href="/leads?new=1"
-              className="hidden items-center gap-1.5 border border-line px-3 py-1.5 font-body text-[11px] font-light uppercase tracking-[0.14em] text-fg transition hover:bg-surface sm:inline-flex"
+              onClick={() => startNav("/leads?new=1")}
+              className="hidden items-center gap-1.5 border border-line px-3 py-1.5 font-body text-[11px] font-light uppercase tracking-[0.14em] text-fg transition hover:bg-surface active:scale-[0.98] sm:inline-flex"
             >
               <Plus className="h-3.5 w-3.5" />
               New Lead
             </Link>
+            <NotificationsMenu />
             <ThemeToggle />
           </div>
         </header>
@@ -478,8 +521,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         >
           <div
+            key={pathname}
             className={clsx(
-              "mx-auto min-w-0",
+              "page-enter mx-auto min-w-0",
               wide ? "max-w-none w-full" : "max-w-5xl",
             )}
           >

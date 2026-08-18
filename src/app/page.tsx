@@ -14,5 +14,5 @@ export default function Home() {
     router.replace(user ? "/pipeline" : "/login");
   }, [user, loading, router]);
 
-  return <BrandLoader />;
+  return <BrandLoader status="Opening portal…" />;
 }

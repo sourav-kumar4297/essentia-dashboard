@@ -1,17 +1,49 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader, Panel, Stat, Button } from "@/components/ui";
+import { DashboardSkeleton } from "@/components/PortalSkeleton";
 import { PlatformTabs } from "@/components/PlatformTabs";
 import { useLeadStats } from "@/lib/use-lead-stats";
 import { useHubspotLiveSync } from "@/lib/use-bd-leads";
+import { useNavProgress } from "@/components/RouteProgress";
 import { BD_STATUS_LABELS, type BdLeadStatus } from "@/lib/bd-types";
 import { clsx } from "clsx";
 import { format } from "date-fns";
 
+function CountUp({ value, suffix = "" }: { value: number; suffix?: string }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setN(value);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / 720, 1);
+      setN(Math.round(value * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return (
+    <>
+      {n.toLocaleString()}
+      {suffix}
+    </>
+  );
+}
+
 export default function DashboardPage() {
   const { stats, loading, refresh } = useLeadStats();
+  const { startNav } = useNavProgress();
   useHubspotLiveSync(refresh);
   const total = stats?.total ?? 0;
   const channels = stats?.channels ?? [];
@@ -41,7 +73,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Live BD lead intelligence across channels and business units."
         actions={
-          <Link href="/leads?new=1">
+          <Link href="/leads?new=1" onClick={() => startNav("/leads?new=1")}>
             <Button>
               <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
               New Lead
@@ -52,29 +84,27 @@ export default function DashboardPage() {
 
       <PlatformTabs />
 
-      {loading && !stats && (
-        <p className="label py-10 text-center text-fg-muted">Loading…</p>
-      )}
+      {loading && !stats && <DashboardSkeleton />}
 
       {stats && (
-        <>
+        <div className="page-enter">
           <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Stat
               label="Total leads"
-              value={total.toLocaleString()}
+              value={<CountUp value={total} />}
               hint="All channels, all BUs"
             />
             <div className="panel-surface border-t-2 border-t-[#2e3f6b] px-5 py-5 animate-rise">
               <p className="label text-fg-muted">EE leads</p>
               <p className="metric mt-3 text-[15px] tracking-wide text-fg">
-                {stats.ee.toLocaleString()}
+                <CountUp value={stats.ee} />
               </p>
               <p className="label mt-1.5 text-fg-dim">Essentia Environments</p>
             </div>
             <div className="panel-surface border-t-2 border-t-[#2e5c3a] px-5 py-5 animate-rise delay-1">
               <p className="label text-fg-muted">EH / other</p>
               <p className="metric mt-3 text-[15px] tracking-wide text-fg">
-                {(stats.eh + stats.cc).toLocaleString()}
+                <CountUp value={stats.eh + stats.cc} />
               </p>
               <p className="label mt-1.5 text-fg-dim">
                 EH {stats.eh} · CC {stats.cc}
@@ -82,7 +112,7 @@ export default function DashboardPage() {
             </div>
             <Stat
               label="Win rate"
-              value={`${stats.winRate}%`}
+              value={<CountUp value={stats.winRate} suffix="%" />}
               hint={`${stats.won.toLocaleString()} won`}
             />
           </div>
@@ -95,28 +125,30 @@ export default function DashboardPage() {
             />
             <Stat
               label="This month"
-              value={stats.thisMonth.toLocaleString()}
+              value={<CountUp value={stats.thisMonth} />}
               hint="Leads since month start"
             />
             <Stat
               label="Active channels"
-              value={stats.activeChannels}
+              value={<CountUp value={stats.activeChannels} />}
               hint={`${channels.length} tracked sources`}
             />
           </div>
 
           <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            {statusOrder.map((status) => (
+            {statusOrder.map((status, i) => (
               <Link
                 key={status}
                 href={`/leads?status=${status}`}
-                className="panel-surface px-4 py-4 transition hover:border-line-strong"
+                onClick={() => startNav(`/leads?status=${status}`)}
+                className="panel-surface px-4 py-4 transition hover:border-line-strong active:scale-[0.98] animate-rise"
+                style={{ animationDelay: `${i * 45}ms` }}
               >
                 <p className="label text-fg-muted">
                   {BD_STATUS_LABELS[status]}
                 </p>
                 <p className="metric mt-2 text-[18px] text-fg">
-                  {(stats.statusCounts[status] ?? 0).toLocaleString()}
+                  <CountUp value={stats.statusCounts[status] ?? 0} />
                 </p>
               </Link>
             ))}
@@ -125,8 +157,12 @@ export default function DashboardPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Panel title="Leads by channel" className="animate-rise">
               <ul className="space-y-4">
-                {displayChannels.map(({ channel, count }) => (
-                  <li key={channel}>
+                {displayChannels.map(({ channel, count }, i) => (
+                  <li
+                    key={channel}
+                    style={{ animationDelay: `${i * 60}ms` }}
+                    className="animate-rise"
+                  >
                     <div className="mb-1.5 flex items-baseline justify-between gap-3">
                       <span className="label text-fg">{channel}</span>
                       <span className="metric text-fg-muted">
@@ -135,10 +171,11 @@ export default function DashboardPage() {
                     </div>
                     <div className="h-[3px] w-full bg-line">
                       <div
-                        className="h-full bg-fg transition-all duration-500"
+                        className="bar-fill h-full bg-fg"
                         style={{
                           width: `${Math.max((count / maxChannel) * 100, count ? 4 : 0)}%`,
                           opacity: count ? 1 : 0.2,
+                          animationDelay: `${120 + i * 70}ms`,
                         }}
                       />
                     </div>
@@ -147,6 +184,7 @@ export default function DashboardPage() {
               </ul>
               <Link
                 href="/channels"
+                onClick={() => startNav("/channels")}
                 className="label mt-5 inline-block text-fg-muted underline-offset-2 hover:text-fg hover:underline"
               >
                 View all channels →
@@ -160,11 +198,16 @@ export default function DashboardPage() {
                     No leads yet.
                   </li>
                 )}
-                {recent.map((lead) => (
-                  <li key={lead.id}>
+                {recent.map((lead, i) => (
+                  <li
+                    key={lead.id}
+                    className="animate-rise"
+                    style={{ animationDelay: `${i * 50}ms` }}
+                  >
                     <Link
                       href={`/leads?focus=${lead.id}`}
-                      className="flex items-start justify-between gap-3 py-3 transition hover:bg-surface-hover"
+                      onClick={() => startNav(`/leads?focus=${lead.id}`)}
+                      className="flex items-start justify-between gap-3 py-3 transition hover:bg-surface-hover active:opacity-70"
                     >
                       <div className="min-w-0">
                         <p className="label truncate text-fg">{lead.name}</p>
@@ -193,13 +236,14 @@ export default function DashboardPage() {
               </ul>
               <Link
                 href="/leads"
+                onClick={() => startNav("/leads")}
                 className="label mt-4 inline-block text-fg-muted underline-offset-2 hover:text-fg hover:underline"
               >
                 Open all leads →
               </Link>
             </Panel>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

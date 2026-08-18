@@ -7,9 +7,18 @@ import { Logo } from "./Logo";
  * growing hairline and discipline tagline, in the spirit of a luxury
  * design-studio preloader. Always black, independent of theme.
  */
-export function BrandLoader() {
+export function BrandLoader({
+  status = "Please wait…",
+}: {
+  status?: string;
+}) {
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black">
+    <div
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
       <div className="overflow-hidden py-1">
         <div
           style={{
@@ -31,6 +40,20 @@ export function BrandLoader() {
       >
         Design&nbsp;&nbsp;·&nbsp;&nbsp;Build&nbsp;&nbsp;·&nbsp;&nbsp;Furniture
       </p>
+
+      <p
+        className="mt-8 font-body text-[10px] font-light uppercase tracking-[0.28em] text-white/50"
+        style={{ animation: "fade-up-soft 0.8s ease both 1.1s" }}
+      >
+        {status}
+      </p>
+      <span
+        aria-hidden
+        className="mt-5 h-1 w-24 overflow-hidden bg-white/15"
+        style={{ animation: "fade-up-soft 0.8s ease both 1.2s" }}
+      >
+        <span className="block h-full w-1/2 bg-white/70" style={{ animation: "loader-bar 1.1s ease-in-out infinite" }} />
+      </span>
 
       <p
         className="absolute bottom-8 font-body text-[10px] font-light uppercase tracking-[0.3em] text-white/25"

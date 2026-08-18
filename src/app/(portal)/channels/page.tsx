@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { PageHeader, Panel, Stat } from "@/components/ui";
+import { ChannelsSkeleton } from "@/components/PortalSkeleton";
 import { PlatformTabs } from "@/components/PlatformTabs";
 import { useLeadStats } from "@/lib/use-lead-stats";
 
@@ -30,9 +31,7 @@ export default function ChannelsPage() {
 
       <PlatformTabs />
 
-      {loading && !stats && (
-        <p className="label py-10 text-center text-fg-muted">Loading…</p>
-      )}
+      {loading && !stats && <ChannelsSkeleton />}
 
       {stats && (
         <>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clsx } from "clsx";
 import { useLeadTotal } from "@/lib/use-bd-leads";
+import { useNavProgress } from "@/components/RouteProgress";
 
 const TABS = [
   { href: "/pipeline", label: "Dashboard" },
@@ -15,6 +16,7 @@ const TABS = [
 export function PlatformTabs() {
   const pathname = usePathname();
   const { total } = useLeadTotal();
+  const { pendingHref, startNav } = useNavProgress();
 
   return (
     <div className="mb-5 flex flex-wrap gap-1 border-b border-line">
@@ -23,17 +25,22 @@ export function PlatformTabs() {
           tab.href === "/pipeline"
             ? pathname === "/pipeline"
             : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        const pending =
+          !active && pendingHref.split("?")[0] === tab.href;
         const label =
           tab.href === "/leads" ? `All Leads (${total.toLocaleString()})` : tab.label;
         return (
           <Link
             key={tab.href}
             href={tab.href}
+            onClick={() => startNav(tab.href)}
             className={clsx(
-              "label border-b-2 px-3 py-2.5 transition",
+              "label border-b-2 px-3 py-2.5 transition active:opacity-60",
               active
                 ? "border-fg text-fg"
-                : "border-transparent text-fg-muted hover:text-fg",
+                : pending
+                  ? "border-fg/40 text-fg animate-pulse-soft"
+                  : "border-transparent text-fg-muted hover:text-fg",
             )}
           >
             {label}

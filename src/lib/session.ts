@@ -1,20 +1,16 @@
 import { cookies } from "next/headers";
-import { randomBytes, randomInt } from "crypto";
+import { randomInt } from "crypto";
 import { prisma } from "@/lib/db";
+import { signAuthJwt, verifyAuthJwt } from "@/lib/jwt";
 import {
   OTP_TTL_MS,
   SESSION_COOKIE,
-  SESSION_TTL_MS,
   type AuthUser,
   type Role,
 } from "@/lib/bd-types";
 
 export function generateOtpCode(): string {
   return String(randomInt(100000, 999999));
-}
-
-export function generateSessionToken(): string {
-  return randomBytes(32).toString("hex");
 }
 
 export async function createOtp(email: string): Promise<string> {
@@ -110,20 +106,15 @@ export async function ensureUser(
   };
 }
 
-export async function createSession(userId: string): Promise<string> {
-  const token = generateSessionToken();
-  await prisma.session.create({
-    data: {
-      token,
-      userId,
-      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
-    },
-  });
-  return token;
+export async function createSession(user: {
+  id: string;
+  email: string;
+}): Promise<string> {
+  return signAuthJwt(user);
 }
 
-export async function destroySession(token: string): Promise<void> {
-  await prisma.session.deleteMany({ where: { token } });
+export async function destroySession(_token: string): Promise<void> {
+  void _token;
 }
 
 export async function getSessionUser(): Promise<AuthUser | null> {
@@ -131,20 +122,17 @@ export async function getSessionUser(): Promise<AuthUser | null> {
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const session = await prisma.session.findUnique({
-    where: { token },
-    include: { user: true },
-  });
-  if (!session || session.expiresAt < new Date()) {
-    if (session) await prisma.session.delete({ where: { id: session.id } });
-    return null;
-  }
+  const claims = verifyAuthJwt(token);
+  if (!claims) return null;
+
+  const user = await prisma.user.findUnique({ where: { id: claims.sub } });
+  if (!user) return null;
 
   return {
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name,
-    role: session.user.role as Role,
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role as Role,
   };
 }
 

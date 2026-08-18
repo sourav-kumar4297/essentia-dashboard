@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import { createOtp, ensureUser } from "@/lib/session";
+import { createOtp } from "@/lib/session";
 import { sendOtpEmail } from "@/lib/otp-mail";
+import {
+  isAllowedLoginEmail,
+  LOGIN_EMAIL_HINT,
+  normalizeEmail,
+} from "@/lib/allowed-email";
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { email?: string; name?: string };
-    const email = body.email?.trim().toLowerCase();
+    const body = (await req.json()) as { email?: string };
+    const email = normalizeEmail(body.email ?? "");
     if (!email || !email.includes("@")) {
       return NextResponse.json(
         { error: "A valid email is required." },
@@ -13,22 +18,21 @@ export async function POST(req: Request) {
       );
     }
 
-    await ensureUser(email, body.name);
+    if (!isAllowedLoginEmail(email)) {
+      return NextResponse.json({ error: LOGIN_EMAIL_HINT }, { status: 403 });
+    }
+
     const code = await createOtp(email);
     const delivery = await sendOtpEmail(email, code);
 
-    if (!delivery.delivered && "error" in delivery && delivery.error) {
+    if (!delivery.delivered) {
       return NextResponse.json({ error: delivery.error }, { status: 503 });
     }
 
     return NextResponse.json({
       ok: true,
       email,
-      delivered: delivery.delivered,
-      // Only when Resend is off / failed and ALLOW_DEV_OTP is on
-      ...("devCode" in delivery && delivery.devCode
-        ? { devCode: delivery.devCode }
-        : {}),
+      delivered: true,
     });
   } catch (err) {
     console.error(err);

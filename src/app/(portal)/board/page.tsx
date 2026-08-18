@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Eye, Pencil } from "lucide-react";
 import { PageHeader, QualBadge } from "@/components/ui";
+import { BoardSkeleton } from "@/components/PortalSkeleton";
 import { PlatformTabs } from "@/components/PlatformTabs";
 import { useBdLeads, useHubspotLiveSync, type BdLeadRow } from "@/lib/use-bd-leads";
 import { BD_STATUS_LABELS, type BdLeadStatus } from "@/lib/bd-types";
@@ -71,10 +72,9 @@ export default function BoardPage() {
 
       <PlatformTabs />
 
-      {loading && (
-        <p className="label py-8 text-fg-dim">Loading pipeline…</p>
-      )}
-
+      {loading ? (
+        <BoardSkeleton />
+      ) : (
       <div className="no-scrollbar flex overflow-x-auto border border-line bg-surface">
         {COLUMNS.map((col, i) => {
           const items = byStatus.get(col.status) ?? [];
@@ -186,6 +186,7 @@ export default function BoardPage() {
           );
         })}
       </div>
+      )}
 
       <p className="label mt-3 text-fg-dim">
         Statuses: {COLUMNS.map((c) => BD_STATUS_LABELS[c.status]).join(" · ")}

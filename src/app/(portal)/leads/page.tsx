@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { Button, Field, PageHeader, QualBadge, inputClass } from "@/components/ui";
+import { LeadsTableSkeleton } from "@/components/PortalSkeleton";
 import { SuspenseWrap } from "@/components/SuspenseWrap";
 import { PlatformTabs } from "@/components/PlatformTabs";
 import { useAuth } from "@/lib/auth-context";
@@ -236,7 +237,10 @@ function LeadsInner() {
         />
       </div>
 
-      <div className="min-w-0 w-full border border-line bg-surface">
+      <div
+        className="min-w-0 w-full border border-line bg-surface"
+        aria-busy={loading}
+      >
         <div className="min-w-0 w-full overflow-x-auto">
           <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
             <colgroup>
@@ -271,16 +275,7 @@ function LeadsInner() {
               </tr>
             </thead>
             <tbody>
-              {loading && (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="label px-3 py-10 text-center text-fg-dim"
-                  >
-                    Loading…
-                  </td>
-                </tr>
-              )}
+              {loading && <LeadsTableSkeleton rows={pageSize > 10 ? 10 : pageSize} />}
               {!loading && leads.length === 0 && (
                 <tr>
                   <td

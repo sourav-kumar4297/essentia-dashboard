@@ -20,6 +20,16 @@ BD portal — lead capture to CRM handover.
 4. Keep `RESEND_FROM="BD Portal <onboarding@resend.dev>"` for free testing  
    - Sandbox can send **to your own Resend account email** first  
    - Later: verify your domain in Resend → use `noreply@yourdomain.com`
+5. Set `AUTH_SECRET` to any long random string (signs login JWTs)
+
+Login is **email OTP only**. Allowed addresses:
+
+- `souravkumar4297@gmail.com`
+- `*@essentiahome.com`
+- `*@essentia.in`
+- `*@essentiaenvironments.com`
+
+Other Gmail / Yahoo / etc. are rejected.
 
 ## Local setup
 
@@ -33,11 +43,7 @@ npx prisma db seed
 npm run dev
 ```
 
-Seed accounts (after OTP arrives in email):
-
-- Superadmin: `admin@essentia.local` — use a real email you control for OTP tests, or keep ALLOW_DEV_OTP
-- Or sign up any email — first login creates a MEMBER user  
-- Promote role in Neon SQL / Prisma Studio if needed
+Seed: first successful OTP login creates the user. `souravkumar4297@gmail.com` is Super Admin. Other allowed emails start as MEMBER.
 
 ### Dev without Resend yet
 

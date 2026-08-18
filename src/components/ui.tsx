@@ -1,5 +1,6 @@
 import { clsx } from "clsx";
 import type { Qualification } from "@/lib/types";
+import { ContentSkeleton } from "@/components/PortalSkeleton";
 
 export function PageHeader({
   eyebrow,
@@ -138,7 +139,7 @@ export function Stat({
   tone = "default",
 }: {
   label: string;
-  value: string | number;
+  value: React.ReactNode;
   hint?: string;
   tone?: "default" | "alert" | "good" | "amber";
 }) {
@@ -173,11 +174,7 @@ export function ScreenState({
   children: React.ReactNode;
 }) {
   if (state === "loading") {
-    return (
-      <div className="flex min-h-[220px] items-center justify-center panel-surface animate-fade">
-        <p className="label animate-pulse-soft text-fg-muted">Loading…</p>
-      </div>
-    );
+    return <ContentSkeleton />;
   }
   if (state === "error") {
     return (

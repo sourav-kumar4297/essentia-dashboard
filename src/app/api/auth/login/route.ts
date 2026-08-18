@@ -14,7 +14,6 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as {
       username?: string;
       password?: string;
-      /** One-tap demo login from the login card */
       demo?: boolean;
     };
 
@@ -34,14 +33,16 @@ export async function POST(req: Request) {
       );
     }
 
-    // Ensure admin user exists and is always Super Admin for demo login
     const base = await ensureUser(DEMO_EMAIL, DEMO_NAME);
     const user = await prisma.user.update({
       where: { id: base.id },
       data: { name: DEMO_NAME, role: "SUPERADMIN" },
     });
 
-    const token = await createSession(user.id);
+    const token = await createSession({
+      id: user.id,
+      email: user.email,
+    });
 
     const res = NextResponse.json({
       ok: true,
@@ -64,7 +65,8 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[auth/login]", err);
     const message =
-      err instanceof Error && /DATABASE_URL|Can't reach|P1001|P1017/i.test(err.message)
+      err instanceof Error &&
+      /DATABASE_URL|Can't reach|P1001|P1017/i.test(err.message)
         ? "Database is not configured on the server. Set DATABASE_URL (Neon) in Vercel env."
         : "Could not sign in. Check DATABASE_URL / Neon connection, then try again.";
     return NextResponse.json({ error: message }, { status: 500 });

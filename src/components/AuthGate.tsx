@@ -1,40 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandLoader } from "@/components/BrandLoader";
 import { useAuth } from "@/lib/auth-context";
-
-const SPLASH_MS = 1600;
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useAuth();
-  const [splashDone, setSplashDone] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setSplashDone(true), SPLASH_MS);
-    return () => clearTimeout(t);
-  }, []);
+  const isLogin = pathname === "/login";
 
   useEffect(() => {
     if (loading) return;
-    if (!user && pathname !== "/login") {
+    if (!user && !isLogin) {
       router.replace("/login");
       return;
     }
-    if (user && pathname === "/login") {
+    if (user && isLogin) {
       router.replace("/pipeline");
     }
-  }, [user, loading, pathname, router]);
+  }, [user, loading, isLogin, router]);
 
-  if (!splashDone || loading) {
-    return <BrandLoader />;
+  // Login form should paint immediately — never trap people on a black splash
+  // while the session check is in flight.
+  if (isLogin) {
+    if (user) {
+      return <BrandLoader status="Opening dashboard…" />;
+    }
+    return <>{children}</>;
   }
 
-  if (!user && pathname !== "/login") {
-    return <BrandLoader />;
+  if (loading) {
+    return <BrandLoader status="Checking your session…" />;
+  }
+
+  if (!user) {
+    return <BrandLoader status="Redirecting to sign in…" />;
   }
 
   return <>{children}</>;
