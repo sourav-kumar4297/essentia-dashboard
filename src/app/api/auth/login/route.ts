@@ -9,6 +9,23 @@ const DEMO_PASSWORD = "password123";
 const DEMO_EMAIL = "admin@essentia.local";
 const DEMO_NAME = "Super Admin";
 
+function isDbUnreachable(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err);
+  return /DATABASE_URL|Can't reach|ECONNREFUSED|ETIMEDOUT|P1001|P1017|P1000|Environment variable not found/i.test(
+    message,
+  );
+}
+
+async function withDbRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!isDbUnreachable(err)) throw err;
+    await new Promise((r) => setTimeout(r, 600));
+    return fn();
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => ({}))) as {
@@ -33,10 +50,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const base = await ensureUser(DEMO_EMAIL, DEMO_NAME);
-    const user = await prisma.user.update({
-      where: { id: base.id },
-      data: { name: DEMO_NAME, role: "SUPERADMIN" },
+    const user = await withDbRetry(async () => {
+      const base = await ensureUser(DEMO_EMAIL, DEMO_NAME);
+      return prisma.user.update({
+        where: { id: base.id },
+        data: { name: DEMO_NAME, role: "SUPERADMIN" },
+      });
     });
 
     const token = await createSession({
@@ -64,11 +83,25 @@ export async function POST(req: Request) {
     return res;
   } catch (err) {
     console.error("[auth/login]", err);
-    const message =
-      err instanceof Error &&
-      /DATABASE_URL|Can't reach|P1001|P1017/i.test(err.message)
-        ? "Database is not configured on the server. Set DATABASE_URL (Neon) in Vercel env."
-        : "Could not sign in. Check DATABASE_URL / Neon connection, then try again.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = err instanceof Error ? err.message : "";
+    if (isDbUnreachable(err)) {
+      return NextResponse.json(
+        {
+          error:
+            "Database is not reachable. Confirm DATABASE_URL (Neon) in Vercel env, then retry.",
+        },
+        { status: 500 },
+      );
+    }
+    if (/AUTH_SECRET/i.test(message)) {
+      return NextResponse.json(
+        { error: "Auth is not configured. Set AUTH_SECRET in Vercel env." },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json(
+      { error: "Could not sign in. Please try again." },
+      { status: 500 },
+    );
   }
 }
