@@ -657,20 +657,15 @@ function LeadsInner() {
 
       {detail && (
         <LeadSidePanel title="Lead detail" onClose={() => setDetailId(null)}>
-          <LeadDetailBody
+          <LeadFormBody
             lead={detail}
-            isAdmin={Boolean(user && canApproveReferrals(user.role))}
-            canAssign={Boolean(user && canAssignLeads(user.role))}
-            currentUserId={user?.id ?? ""}
+            isAdmin={isAdmin}
             assignees={assignees.filter((a) => a.role === "MEMBER")}
-            onChanged={async () => {
+            onSaved={async () => {
               await refresh();
-            }}
-            onEdit={() => {
               setDetailId(null);
-              setEditId(detail.id);
-              setFormOpen(true);
             }}
+            onCancel={() => setDetailId(null)}
           />
         </LeadSidePanel>
       )}
@@ -683,20 +678,38 @@ function LeadsInner() {
             setEditId(null);
           }}
         >
-          <LeadFormBody
-            lead={editLead}
-            isAdmin={isAdmin}
-            assignees={assignees.filter((a) => a.role === "MEMBER")}
-            onSaved={async () => {
-              await refresh();
-              setFormOpen(false);
-              setEditId(null);
-            }}
-            onCancel={() => {
-              setFormOpen(false);
-              setEditId(null);
-            }}
-          />
+          {editLead ? (
+            <LeadDetailBody
+              lead={editLead}
+              isAdmin={Boolean(user && canApproveReferrals(user.role))}
+              canAssign={Boolean(user && canAssignLeads(user.role))}
+              currentUserId={user?.id ?? ""}
+              assignees={assignees.filter((a) => a.role === "MEMBER")}
+              onChanged={async () => {
+                await refresh();
+              }}
+              onEdit={() => {
+                setFormOpen(false);
+                setEditId(null);
+                setDetailId(editLead.id);
+              }}
+            />
+          ) : (
+            <LeadFormBody
+              lead={null}
+              isAdmin={isAdmin}
+              assignees={assignees.filter((a) => a.role === "MEMBER")}
+              onSaved={async () => {
+                await refresh();
+                setFormOpen(false);
+                setEditId(null);
+              }}
+              onCancel={() => {
+                setFormOpen(false);
+                setEditId(null);
+              }}
+            />
+          )}
         </LeadSidePanel>
       )}
     </div>
@@ -1212,8 +1225,8 @@ function LeadDetailBody({
         </div>
       )}
 
-      <Button className="w-full" onClick={onEdit}>
-        Edit lead
+      <Button className="w-full" variant="secondary" onClick={onEdit}>
+        Edit contact details
       </Button>
     </div>
   );
