@@ -118,39 +118,6 @@ export default function LoginPage() {
     setShake((n) => n + 1);
   }
 
-  function fillDemo() {
-    setEmail("admin@essentia.com");
-    setError("");
-  }
-
-  async function signInTest(account: "admin" | "member") {
-    setError("");
-    setLoading(true);
-    setStatus("Signing in…");
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ account }),
-      });
-      const data = (await res.json()) as { error?: string; user?: AuthUser };
-      if (!res.ok || !data.user) {
-        fail(data.error || "Could not sign in.");
-        setLoading(false);
-        setStatus("");
-        return;
-      }
-      setStatus("Opening dashboard…");
-      applyUser(data.user);
-      router.replace("/pipeline");
-    } catch {
-      fail("Network error. Try again.");
-      setLoading(false);
-      setStatus("");
-    }
-  }
-
   async function sendCode(e: FormEvent) {
     e.preventDefault();
     setError("");
@@ -158,17 +125,6 @@ export default function LoginPage() {
     setPreviewCode("");
     if (!email.trim() || !email.includes("@")) {
       fail("Enter a valid email.");
-      return;
-    }
-    const trimmed = email.trim().toLowerCase();
-    if (
-      trimmed === "member@essentia.com" ||
-      trimmed === "member@essentia.local" ||
-      trimmed === "member@essentia" ||
-      trimmed === "admin@essentia.com" ||
-      trimmed === "admin@essentia.local"
-    ) {
-      await signInTest(trimmed.startsWith("admin") ? "admin" : "member");
       return;
     }
     setLoading(true);
@@ -452,40 +408,6 @@ export default function LoginPage() {
               </button>
             </form>
           )}
-
-          <div className="mt-6 space-y-2 border border-dashed border-line px-4 py-3">
-            <p className="label text-fg-dim">Test accounts — no OTP</p>
-            <button
-              type="button"
-              onClick={() => void signInTest("member")}
-              disabled={loading || step === "code"}
-              className="w-full border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong hover:bg-surface-hover disabled:opacity-50"
-            >
-              <p className="label text-fg">member@essentia.com</p>
-              <p className="metric mt-0.5 text-fg-dim">
-                BD Member — assigned leads only
-              </p>
-            </button>
-            <button
-              type="button"
-              onClick={() => void signInTest("admin")}
-              disabled={loading || step === "code"}
-              className="w-full border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong hover:bg-surface-hover disabled:opacity-50"
-            >
-              <p className="label text-fg">admin@essentia.com</p>
-              <p className="metric mt-0.5 text-fg-dim">
-                BD Admin — assign leads, no HubSpot / user roles
-              </p>
-            </button>
-            <button
-              type="button"
-              onClick={fillDemo}
-              disabled={loading || step === "code"}
-              className="label w-full text-left text-fg-dim hover:text-fg"
-            >
-              Or request an OTP for any email
-            </button>
-          </div>
         </div>
       </main>
     </div>
