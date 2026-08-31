@@ -6,7 +6,7 @@ import { Moon, RefreshCw, Sun, UserRound } from "lucide-react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
-import { canSyncHubspot } from "@/lib/rbac";
+import { canManageUsers, canSyncHubspot, ROLE_LABELS } from "@/lib/rbac";
 import { clsx } from "clsx";
 
 export default function SettingsPage() {
@@ -154,12 +154,17 @@ export default function SettingsPage() {
           <p className="label text-fg">{user?.name}</p>
           <p className="metric mt-1 text-fg-dim">{user?.email}</p>
           <p className="label mt-3 text-fg-muted">
-            Role: <span className="text-fg">{user?.role}</span>
+            Role:{" "}
+            <span className="text-fg">
+              {user ? ROLE_LABELS[user.role] : "—"}
+            </span>
           </p>
           <p className="label mt-1 text-fg-dim">
             {user?.role === "MEMBER"
-              ? "Members see assigned leads and can create personal referrals."
-              : "Full BD access — assign, approve referrals, sync HubSpot."}
+              ? "You see assigned leads. Call, log notes, set Hot/Warm/Cold, then return ready leads to Admin."
+              : user?.role === "ADMIN"
+                ? "Assign leads to members. When a member returns a Hot or Warm lead, you send it to the next team (coming next)."
+                : "All flows — users, HubSpot, assign, and pipeline."}
           </p>
           <Link href="/profile" className="mt-4 inline-block">
             <Button variant="secondary">
@@ -205,7 +210,116 @@ export default function SettingsPage() {
             )}
           </Panel>
         )}
+
+        {user && canManageUsers(user.role) && <TeamRolesPanel />}
       </div>
     </div>
+  );
+}
+
+function TeamRolesPanel() {
+  const [users, setUsers] = useState<
+    {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      blocked?: boolean;
+    }[]
+  >([]);
+  const [busyId, setBusyId] = useState("");
+
+  useEffect(() => {
+    void fetch("/api/users", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setUsers(d.users ?? []))
+      .catch(() => undefined);
+  }, []);
+
+  async function patchUser(
+    id: string,
+    body: { role?: "ADMIN" | "MEMBER"; blocked?: boolean },
+  ) {
+    setBusyId(id);
+    const res = await fetch(`/api/users/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as {
+        user: {
+          id: string;
+          role: string;
+          blocked: boolean;
+        };
+      };
+      setUsers((list) =>
+        list.map((u) =>
+          u.id === id
+            ? { ...u, role: data.user.role, blocked: data.user.blocked }
+            : u,
+        ),
+      );
+    }
+    setBusyId("");
+  }
+
+  return (
+    <Panel className="animate-rise delay-2 lg:col-span-2" title="Team access">
+      <p className="label mb-4 text-fg-muted">
+        Super Admin only — change BD Admin / Member roles, or block a user so
+        they cannot sign in.
+      </p>
+      <ul className="divide-y divide-line border border-line">
+        {users.map((u) => (
+          <li
+            key={u.id}
+            className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
+          >
+            <div className="min-w-0">
+              <p className="label text-fg">
+                {u.name}
+                {u.blocked ? (
+                  <span className="ml-2 text-error">Blocked</span>
+                ) : null}
+              </p>
+              <p className="metric text-fg-dim">{u.email}</p>
+            </div>
+            {u.role === "SUPERADMIN" ? (
+              <span className="label text-fg-muted">
+                {ROLE_LABELS.SUPERADMIN}
+              </span>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="border border-line bg-transparent px-2 py-1.5 font-body text-[13px] text-fg outline-none"
+                  value={u.role}
+                  disabled={busyId === u.id}
+                  onChange={(e) =>
+                    void patchUser(u.id, {
+                      role: e.target.value as "ADMIN" | "MEMBER",
+                    })
+                  }
+                >
+                  <option value="ADMIN">{ROLE_LABELS.ADMIN}</option>
+                  <option value="MEMBER">{ROLE_LABELS.MEMBER}</option>
+                </select>
+                <Button
+                  variant={u.blocked ? "secondary" : "danger"}
+                  disabled={busyId === u.id}
+                  onClick={() =>
+                    void patchUser(u.id, { blocked: !u.blocked })
+                  }
+                >
+                  {u.blocked ? "Unblock" : "Block"}
+                </Button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Panel>
   );
 }

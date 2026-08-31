@@ -1,48 +1,55 @@
-@import url("https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Lato:wght@300;400;700&display=swap");
 @import "tailwindcss";
 
-/* Default = light (readable BD portal) */
+/* Light — cool stone canvas + deep navy accent (essentia) */
 :root,
 [data-theme="light"] {
-  --bg: #f3f4f6;
-  --bg-soft: #e8eaed;
+  --bg: #e9ecf1;
+  --bg-soft: #dde2ea;
   --surface: #ffffff;
-  --surface-hover: #f8f9fa;
-  --fg: #111827;
-  --fg-muted: rgba(17, 24, 39, 0.72);
-  --fg-dim: rgba(17, 24, 39, 0.55);
-  --line: rgba(17, 24, 39, 0.12);
-  --line-strong: rgba(17, 24, 39, 0.28);
-  --accent: #111827;
+  --surface-hover: #f4f6f9;
+  --fg: #121826;
+  --fg-muted: rgba(18, 24, 38, 0.7);
+  --fg-dim: rgba(18, 24, 38, 0.48);
+  --line: rgba(18, 24, 38, 0.1);
+  --line-strong: rgba(18, 24, 38, 0.22);
+  --accent: #000000;
   --accent-fg: #ffffff;
   --error: #c23b3b;
   --ok: #2e5c3a;
-  --glow: rgba(17, 24, 39, 0.04);
-  --sidebar: #ffffff;
-  --header: rgba(243, 244, 246, 0.92);
+  --glow: rgba(0, 0, 0, 0.06);
+  --glow-warm: rgba(0, 0, 0, 0.04);
+  --sidebar: #fbfcfd;
+  --header: rgba(233, 236, 241, 0.9);
+  --elev: 0 1px 2px rgba(18, 24, 38, 0.04), 0 10px 28px rgba(18, 24, 38, 0.06);
+  --elev-sm: 0 1px 2px rgba(18, 24, 38, 0.05);
 }
 
 [data-theme="dark"] {
-  --bg: #000000;
-  --bg-soft: #070707;
-  --surface: #0e0e0e;
-  --surface-hover: #141414;
-  --fg: #ffffff;
-  --fg-muted: rgba(255, 255, 255, 0.72);
-  --fg-dim: rgba(255, 255, 255, 0.52);
-  --line: rgba(255, 255, 255, 0.12);
-  --line-strong: rgba(255, 255, 255, 0.28);
+  --bg: #08090b;
+  --bg-soft: #0e1014;
+  --surface: #12151a;
+  --surface-hover: #1a1e26;
+  --fg: #f4f5f7;
+  --fg-muted: rgba(244, 245, 247, 0.72);
+  --fg-dim: rgba(244, 245, 247, 0.48);
+  --line: rgba(244, 245, 247, 0.1);
+  --line-strong: rgba(244, 245, 247, 0.22);
   --accent: #ffffff;
   --accent-fg: #000000;
   --error: #ff6b6b;
   --ok: #7dcea0;
-  --glow: rgba(255, 255, 255, 0.04);
-  --sidebar: #000000;
-  --header: rgba(0, 0, 0, 0.82);
+  --glow: rgba(255, 255, 255, 0.06);
+  --glow-warm: rgba(255, 255, 255, 0.03);
+  --sidebar: #0c0e12;
+  --header: rgba(8, 9, 11, 0.88);
+  --elev: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.35);
+  --elev-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 @theme {
   --font-body: "Lato", Helvetica, Arial, sans-serif;
+  --font-display: "Cormorant Garamond", Georgia, serif;
   --color-bg: var(--bg);
   --color-bg-soft: var(--bg-soft);
   --color-surface: var(--surface);
@@ -102,8 +109,8 @@ select option {
 }
 
 .heading {
-  font-family: var(--font-body);
-  font-weight: 300;
+  font-family: var(--font-display), var(--font-body);
+  font-weight: 500;
   letter-spacing: 0.01em;
 }
 
@@ -122,19 +129,24 @@ select option {
 /* Soft canvas atmosphere */
 .shell-main {
   background:
-    radial-gradient(ellipse 70% 45% at 100% 0%, var(--glow), transparent 55%),
-    radial-gradient(ellipse 50% 35% at 0% 100%, var(--glow), transparent 50%),
-    var(--bg);
+    radial-gradient(ellipse 80% 50% at 100% -10%, var(--glow), transparent 55%),
+    radial-gradient(ellipse 55% 40% at -5% 110%, var(--glow-warm), transparent 50%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-soft) 55%, var(--bg)) 0%, var(--bg) 42%, var(--bg) 100%);
 }
 
 .panel-surface {
   background: var(--surface);
   border: 1px solid var(--line);
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  box-shadow: var(--elev-sm);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.25s ease;
 }
 
 .panel-surface:hover {
   border-color: var(--line-strong);
+  box-shadow: var(--elev);
 }
 
 .nav-link {
@@ -184,7 +196,7 @@ select option {
 .route-progress-bar {
   height: 100%;
   background: var(--fg);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--fg) 45%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--fg) 45%, transparent);
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -202,11 +214,9 @@ select option {
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

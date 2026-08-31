@@ -30,8 +30,15 @@ export interface BdLeadRow {
   crmTeamLead: string | null;
   createdAt: string;
   updatedAt: string;
-  assignedTo?: { id: string; name: string; email: string } | null;
+  assignedTo?: { id: string; name: string; email: string; role?: string } | null;
   createdBy?: { id: string; name: string; email: string } | null;
+  activities?: {
+    id: string;
+    type: string;
+    body: string;
+    createdAt: string;
+    createdBy?: { id: string; name: string } | null;
+  }[];
 }
 
 /** Lightweight total only — safe for sidebar */
@@ -69,6 +76,7 @@ export function useBdLeadsPage(
     since?: string;
     source?: string;
     qualification?: string;
+    pool?: string;
   },
 ) {
   const [leads, setLeads] = useState<BdLeadRow[]>([]);
@@ -97,6 +105,9 @@ export function useBdLeadsPage(
       if (opts?.qualification && opts.qualification !== "all") {
         params.set("qualification", opts.qualification);
       }
+      if (opts?.pool && opts.pool !== "all") {
+        params.set("pool", opts.pool);
+      }
 
       const res = await fetch(`/api/leads?${params}`, {
         credentials: "include",
@@ -122,6 +133,7 @@ export function useBdLeadsPage(
     opts?.since,
     opts?.source,
     opts?.qualification,
+    opts?.pool,
   ]);
 
   useEffect(() => {
@@ -132,11 +144,12 @@ export function useBdLeadsPage(
 }
 
 /** Pull HubSpot while a leads view is open (every minute after an initial 14-day catch-up). */
-export function useHubspotLiveSync(onSynced: () => void) {
+export function useHubspotLiveSync(onSynced: () => void, enabled = true) {
   const onSyncedRef = useRef(onSynced);
   onSyncedRef.current = onSynced;
 
   useEffect(() => {
+    if (!enabled) return;
     let stop = false;
     async function tick(lookbackHours: number) {
       try {
@@ -157,7 +170,7 @@ export function useHubspotLiveSync(onSynced: () => void) {
       stop = true;
       window.clearInterval(id);
     };
-  }, []);
+  }, [enabled]);
 }
 
 /** @deprecated prefer useBdLeadsPage — kept for board/simple lists (first 500) */

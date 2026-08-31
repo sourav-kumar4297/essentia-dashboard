@@ -172,7 +172,7 @@ function ConsultationInner() {
                     }
                     className={
                       archetype === a
-                        ? "bg-accent px-3 py-1.5 font-body text-[12px] font-light text-accent-fg"
+                        ? "bg-fg px-3 py-1.5 font-body text-[12px] font-light text-bg"
                         : "border border-line px-3 py-1.5 font-body text-[12px] font-light text-fg-muted hover:border-line-strong hover:text-fg"
                     }
                   >

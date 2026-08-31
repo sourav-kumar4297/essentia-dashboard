@@ -19,13 +19,23 @@ export async function POST(req: Request) {
     }
 
     if (!isAllowedLoginEmail(email)) {
-      return NextResponse.json({ error: LOGIN_EMAIL_HINT }, { status: 403 });
+      return NextResponse.json({ error: LOGIN_EMAIL_HINT }, { status: 400 });
     }
 
     const code = await createOtp(email);
     const delivery = await sendOtpEmail(email, code);
+    const allowPreview = process.env.ALLOW_DEV_OTP === "true";
 
     if (!delivery.delivered) {
+      if (allowPreview) {
+        return NextResponse.json({
+          ok: true,
+          email,
+          delivered: false,
+          previewCode: code,
+          hint: delivery.error,
+        });
+      }
       return NextResponse.json({ error: delivery.error }, { status: 503 });
     }
 

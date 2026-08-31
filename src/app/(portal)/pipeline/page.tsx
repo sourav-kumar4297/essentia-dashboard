@@ -8,6 +8,8 @@ import { DashboardSkeleton } from "@/components/PortalSkeleton";
 import { PlatformTabs } from "@/components/PlatformTabs";
 import { useLeadStats } from "@/lib/use-lead-stats";
 import { useHubspotLiveSync } from "@/lib/use-bd-leads";
+import { useAuth } from "@/lib/auth-context";
+import { canSyncHubspot } from "@/lib/rbac";
 import { useNavProgress } from "@/components/RouteProgress";
 import { BD_STATUS_LABELS, type BdLeadStatus } from "@/lib/bd-types";
 import { clsx } from "clsx";
@@ -42,9 +44,10 @@ function CountUp({ value, suffix = "" }: { value: number; suffix?: string }) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const { stats, loading, refresh } = useLeadStats();
   const { startNav } = useNavProgress();
-  useHubspotLiveSync(refresh);
+  useHubspotLiveSync(refresh, Boolean(user && canSyncHubspot(user.role)));
   const total = stats?.total ?? 0;
   const channels = stats?.channels ?? [];
   const recent = stats?.recent ?? [];
@@ -94,7 +97,7 @@ export default function DashboardPage() {
               value={<CountUp value={total} />}
               hint="All channels, all BUs"
             />
-            <div className="panel-surface border-t-2 border-t-[#2e3f6b] px-5 py-5 animate-rise">
+            <div className="panel-surface border-t-2 border-t-fg px-5 py-5 animate-rise">
               <p className="label text-fg-muted">EE leads</p>
               <p className="metric mt-3 text-[15px] tracking-wide text-fg">
                 <CountUp value={stats.ee} />

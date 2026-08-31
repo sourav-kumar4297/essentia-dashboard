@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
-import { canViewAllLeads } from "@/lib/rbac";
+import { canViewAllLeads, memberCanSetStatus, memberLeadWhere } from "@/lib/rbac";
 import type { BdLeadStatus, ReferralApproval } from "@/lib/bd-types";
 
 const leadInclude = {
@@ -28,14 +28,23 @@ export async function GET(req: Request) {
   const since = url.searchParams.get("since")?.trim();
   const sort = url.searchParams.get("sort")?.trim() || "newest";
 
+  const pool = url.searchParams.get("pool")?.trim();
+
   const roleWhere = canViewAllLeads(user.role)
     ? {}
-    : {
-        OR: [{ assignedToId: user.id }, { createdById: user.id }],
-      };
+    : memberLeadWhere(user.id);
 
   const filters: Record<string, unknown>[] = [];
   if (Object.keys(roleWhere).length) filters.push(roleWhere);
+  if (canViewAllLeads(user.role) && pool === "unassigned") {
+    filters.push({ assignedToId: null });
+  }
+  if (canViewAllLeads(user.role) && pool === "ready") {
+    filters.push({
+      assignedToId: null,
+      qualification: { in: ["Hot", "Warm"] },
+    });
+  }
   if (status && status !== "all") filters.push({ status });
   if (qualification && qualification !== "all") {
     filters.push({ qualification });
@@ -136,6 +145,26 @@ export async function POST(req: Request) {
       ? "PENDING"
       : "NONE";
 
+    if (!canViewAllLeads(user.role) && body.status && !memberCanSetStatus(String(body.status))) {
+      return NextResponse.json(
+        { error: "Members cannot set that status." },
+        { status: 403 },
+      );
+    }
+
+    const assignedToId = canViewAllLeads(user.role)
+      ? (body.assignedToId as string) || null
+      : user.id;
+    if (assignedToId && canViewAllLeads(user.role)) {
+      const target = await prisma.user.findUnique({ where: { id: assignedToId } });
+      if (!target || target.role !== "MEMBER") {
+        return NextResponse.json(
+          { error: "Leads can only be assigned to BD Members." },
+          { status: 400 },
+        );
+      }
+    }
+
     const lead = await prisma.lead.create({
       data: {
         name,
@@ -156,9 +185,7 @@ export async function POST(req: Request) {
         notes: body.notes ? String(body.notes) : null,
         dealValue:
           typeof body.dealValue === "number" ? body.dealValue : null,
-        assignedToId: canViewAllLeads(user.role)
-          ? (body.assignedToId as string) || user.id
-          : user.id,
+        assignedToId,
         createdById: user.id,
       },
       include: leadInclude,

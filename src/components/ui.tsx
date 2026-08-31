@@ -14,20 +14,24 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-start justify-between gap-3 animate-rise">
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3 animate-rise">
       <div className="min-w-0 max-w-2xl">
         {eyebrow && (
           <nav aria-label="Breadcrumb">
-            <p className="label tracking-[0.14em] text-fg-muted uppercase">
+            <p className="label tracking-[0.16em] text-fg-dim uppercase">
               {eyebrow}
-              <span className="mx-2 text-fg-dim">/</span>
-              <span className="text-fg">{title}</span>
+              <span className="mx-2 text-fg-dim/70">/</span>
+              <span className="text-fg-muted">{title}</span>
             </p>
           </nav>
         )}
-        <h1 className="heading mt-1 text-[24px] leading-tight">{title}</h1>
+        <h1 className="heading mt-1.5 text-[28px] leading-[1.15] tracking-[0.01em] text-fg">
+          {title}
+        </h1>
         {description && (
-          <p className="label mt-1.5 max-w-xl text-fg-muted">{description}</p>
+          <p className="label mt-2 max-w-xl text-[13px] leading-relaxed text-fg-muted">
+            {description}
+          </p>
         )}
       </div>
       {actions && (
@@ -74,9 +78,9 @@ export function Button({
       className={clsx(
         "inline-flex items-center justify-center gap-2 px-4 py-2.5 font-body text-[11px] font-normal uppercase tracking-[0.14em] transition disabled:cursor-not-allowed disabled:opacity-35",
         variant === "primary" &&
-          "bg-accent text-accent-fg hover:opacity-90 active:opacity-80",
+          "bg-fg text-bg shadow-[var(--elev-sm)] hover:opacity-90 active:scale-[0.98]",
         variant === "secondary" &&
-          "border border-line-strong bg-transparent text-fg hover:bg-surface-hover active:opacity-90",
+          "border border-line-strong bg-surface text-fg shadow-[var(--elev-sm)] hover:border-fg/40 hover:bg-surface-hover active:scale-[0.98]",
         variant === "ghost" && "text-fg-muted hover:text-fg",
         variant === "danger" &&
           "border border-error/50 text-error hover:bg-error/10",
@@ -110,7 +114,7 @@ export function Field({
 }
 
 export const inputClass =
-  "w-full border border-line bg-bg px-3 py-2.5 font-body text-[13px] font-light text-fg outline-none transition placeholder:text-fg-dim focus:border-line-strong hover:border-line-strong";
+  "w-full border border-line bg-surface px-3 py-2.5 font-body text-[13px] font-light text-fg outline-none transition placeholder:text-fg-dim focus:border-fg/50 focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--fg)_10%,transparent)] hover:border-line-strong";
 
 const QUAL_STYLES: Record<Qualification, string> = {
   Hot: "border-[#e85d4c]/55 bg-[#e85d4c]/10 text-[#e85d4c]",
@@ -152,8 +156,10 @@ export function Stat({
       )}
     >
       <p className="label text-fg-muted">{label}</p>
-      <p className="metric mt-3 text-[15px] tracking-wide text-fg">{value}</p>
-      {hint && <p className="label mt-1.5 text-fg-dim">{hint}</p>}
+      <p className="heading mt-3 text-[26px] leading-none tracking-wide text-fg">
+        {value}
+      </p>
+      {hint && <p className="label mt-2 text-fg-dim">{hint}</p>}
     </div>
   );
 }

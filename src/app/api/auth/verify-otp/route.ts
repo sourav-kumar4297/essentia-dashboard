@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     }
 
     if (!isAllowedLoginEmail(email)) {
-      return NextResponse.json({ error: LOGIN_EMAIL_HINT }, { status: 403 });
+      return NextResponse.json({ error: LOGIN_EMAIL_HINT }, { status: 400 });
     }
 
     const ok = await verifyOtp(email, code);
@@ -53,6 +53,13 @@ export async function POST(req: Request) {
     return res;
   } catch (err) {
     console.error(err);
+    const message = err instanceof Error ? err.message : "";
+    if (message === "ACCOUNT_BLOCKED") {
+      return NextResponse.json(
+        { error: "This account is blocked. Contact a Super Admin." },
+        { status: 403 },
+      );
+    }
     return NextResponse.json(
       { error: "Could not verify OTP." },
       { status: 500 },

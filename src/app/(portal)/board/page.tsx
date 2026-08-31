@@ -6,6 +6,8 @@ import { PageHeader, QualBadge } from "@/components/ui";
 import { BoardSkeleton } from "@/components/PortalSkeleton";
 import { PlatformTabs } from "@/components/PlatformTabs";
 import { useBdLeads, useHubspotLiveSync, type BdLeadRow } from "@/lib/use-bd-leads";
+import { useAuth } from "@/lib/auth-context";
+import { canSyncHubspot } from "@/lib/rbac";
 import { BD_STATUS_LABELS, type BdLeadStatus } from "@/lib/bd-types";
 import { clsx } from "clsx";
 import { format } from "date-fns";
@@ -30,8 +32,9 @@ const ACTIVE_ORDER: BdLeadStatus[] = [
 ];
 
 export default function BoardPage() {
+  const { user, isAdmin } = useAuth();
   const { leads, loading, refresh } = useBdLeads();
-  useHubspotLiveSync(refresh);
+  useHubspotLiveSync(refresh, Boolean(user && canSyncHubspot(user.role)));
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -67,7 +70,11 @@ export default function BoardPage() {
       <PageHeader
         eyebrow="Lead platform"
         title="Pipeline"
-        description="BD journey — New through Won, plus Hold and Lost."
+        description={
+          isAdmin
+            ? "BD journey — New through Won. Members work assigned cards only."
+            : "Your assigned leads. Log calls on All Leads, then return Hot/Warm to Admin."
+        }
       />
 
       <PlatformTabs />
@@ -75,7 +82,7 @@ export default function BoardPage() {
       {loading ? (
         <BoardSkeleton />
       ) : (
-      <div className="no-scrollbar flex overflow-x-auto border border-line bg-surface">
+      <div className="no-scrollbar flex overflow-x-auto border border-line bg-surface shadow-[var(--elev)]">
         {COLUMNS.map((col, i) => {
           const items = byStatus.get(col.status) ?? [];
           return (
@@ -134,7 +141,7 @@ export default function BoardPage() {
                         )}
                       </button>
                       <div className="absolute right-3 top-3.5 flex gap-0.5 opacity-0 transition group-focus-within:opacity-100 group-hover:opacity-100">
-                        {!isSide && (
+                        {!isSide && isAdmin && (
                           <>
                             <button
                               type="button"

@@ -3,11 +3,54 @@ import { prisma } from "@/lib/db";
 import { createSession, ensureUser } from "@/lib/session";
 import { SESSION_COOKIE, SESSION_TTL_MS, type Role } from "@/lib/bd-types";
 
-/** Demo portal credentials — single account for the team. */
-const DEMO_USERNAME = "admin";
+/** Production + local test accounts — no OTP. */
+const ACCOUNTS: Record<
+  string,
+  { email: string; name: string; role: Role; aliases: string[] }
+> = {
+  admin: {
+    email: "admin@essentia.com",
+    name: "BD Admin",
+    role: "ADMIN",
+    aliases: [
+      "admin",
+      "admin@essentia.com",
+      "admin@essentia.local",
+    ],
+  },
+  member: {
+    email: "member@essentia.com",
+    name: "BD Member",
+    role: "MEMBER",
+    aliases: [
+      "member",
+      "member@essentia.com",
+      "member@essentia",
+      "member@essentia.local",
+    ],
+  },
+};
+
 const DEMO_PASSWORD = "password123";
-const DEMO_EMAIL = "admin@essentia.local";
-const DEMO_NAME = "Super Admin";
+
+function resolveAccount(body: {
+  account?: string;
+  username?: string;
+  password?: string;
+  demo?: boolean;
+}) {
+  if (body.account && ACCOUNTS[body.account]) return ACCOUNTS[body.account];
+  if (body.demo === true) return ACCOUNTS.admin;
+
+  const username = (body.username ?? "").trim().toLowerCase();
+  const password = body.password ?? "";
+  if (password && password !== DEMO_PASSWORD) return null;
+
+  for (const acc of Object.values(ACCOUNTS)) {
+    if (acc.aliases.includes(username)) return acc;
+  }
+  return null;
+}
 
 function isDbUnreachable(err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
@@ -28,35 +71,42 @@ async function withDbRetry<T>(fn: () => Promise<T>): Promise<T> {
 
 export async function POST(req: Request) {
   try {
+    if (process.env.ALLOW_TEST_LOGIN === "false") {
+      return NextResponse.json(
+        { error: "Test login is disabled." },
+        { status: 403 },
+      );
+    }
+
     const body = (await req.json().catch(() => ({}))) as {
+      account?: string;
       username?: string;
       password?: string;
       demo?: boolean;
     };
 
-    const isDemoTap = body.demo === true;
-    const username = (body.username ?? "").trim().toLowerCase();
-    const password = body.password ?? "";
-
-    const ok =
-      isDemoTap ||
-      ((username === DEMO_USERNAME || username === DEMO_EMAIL) &&
-        password === DEMO_PASSWORD);
-
-    if (!ok) {
+    const account = resolveAccount(body);
+    if (!account) {
       return NextResponse.json(
-        { error: "Use the demo account on this screen to sign in." },
+        { error: "Use a test account on this screen to sign in." },
         { status: 401 },
       );
     }
 
     const user = await withDbRetry(async () => {
-      const base = await ensureUser(DEMO_EMAIL, DEMO_NAME);
+      const base = await ensureUser(account.email, account.name);
       return prisma.user.update({
         where: { id: base.id },
-        data: { name: DEMO_NAME, role: "SUPERADMIN" },
+        data: { name: account.name, role: account.role },
       });
     });
+
+    if (user.blocked) {
+      return NextResponse.json(
+        { error: "This account is blocked. Contact a Super Admin." },
+        { status: 403 },
+      );
+    }
 
     const token = await createSession({
       id: user.id,

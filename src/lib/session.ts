@@ -61,21 +61,63 @@ export async function ensureUser(
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  const defaultSupers = [
-    "admin@essentia.local",
-    "souravkumar4297@gmail.com",
-  ];
+  const defaultSupers = ["souravkumar4297@gmail.com"];
   const isSuper = new Set([...defaultSupers, ...superEmails]).has(normalized);
-  const role: Role = isSuper ? "SUPERADMIN" : "MEMBER";
+  const adminEmails = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const defaultAdmins = [
+    "admin@essentia.com",
+    "admin@essentia.local",
+    "ops@essentia.local",
+  ];
+  const defaultMembers = ["member@essentia.com", "member@essentia.local"];
+  const isBdAdmin =
+    !isSuper &&
+    (adminEmails.includes(normalized) || defaultAdmins.includes(normalized));
+  const isBdMember = !isSuper && !isBdAdmin && defaultMembers.includes(normalized);
+  const role: Role = isSuper
+    ? "SUPERADMIN"
+    : isBdAdmin
+      ? "ADMIN"
+      : "MEMBER";
 
   const existing = await prisma.user.findUnique({
     where: { email: normalized },
   });
   if (existing) {
+    if (existing.blocked) {
+      throw new Error("ACCOUNT_BLOCKED");
+    }
     if (isSuper && existing.role !== "SUPERADMIN") {
       const updated = await prisma.user.update({
         where: { id: existing.id },
         data: { role: "SUPERADMIN" },
+      });
+      return {
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        role: updated.role as Role,
+      };
+    }
+    if (isBdAdmin && existing.role !== "ADMIN") {
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: { role: "ADMIN" },
+      });
+      return {
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        role: updated.role as Role,
+      };
+    }
+    if (isBdMember && existing.role !== "MEMBER") {
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: { role: "MEMBER" },
       });
       return {
         id: updated.id,
@@ -126,7 +168,7 @@ export async function getSessionUser(): Promise<AuthUser | null> {
   if (!claims) return null;
 
   const user = await prisma.user.findUnique({ where: { id: claims.sub } });
-  if (!user) return null;
+  if (!user || user.blocked) return null;
 
   return {
     id: user.id,

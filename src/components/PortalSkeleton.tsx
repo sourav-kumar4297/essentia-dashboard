@@ -49,6 +49,9 @@ export function LeadsTableSkeleton({ rows = 8 }: { rows?: number }) {
     <>
       {Array.from({ length: rows }).map((_, i) => (
         <tr key={i}>
+          <td className="px-2 py-3.5">
+            <div className="skeleton h-3.5 w-3.5" />
+          </td>
           <td className="px-3 py-3.5">
             <div className="flex items-center gap-3">
               <div className="skeleton skeleton-circle h-8 w-8 shrink-0" />

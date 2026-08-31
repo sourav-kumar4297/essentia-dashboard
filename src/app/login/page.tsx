@@ -80,8 +80,11 @@ export default function LoginPage() {
   const { applyUser } = useAuth();
   const brandRef = useRef<HTMLElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [previewCode, setPreviewCode] = useState("");
+  const [hint, setHint] = useState("");
   const [error, setError] = useState("");
   const [shake, setShake] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -116,18 +119,12 @@ export default function LoginPage() {
   }
 
   function fillDemo() {
-    setUsername("admin");
-    setPassword("password123");
+    setEmail("admin@essentia.com");
     setError("");
   }
 
-  async function signIn(e: FormEvent) {
-    e.preventDefault();
+  async function signInTest(account: "admin" | "member") {
     setError("");
-    if (!username.trim() || !password) {
-      fail("Enter username and password.");
-      return;
-    }
     setLoading(true);
     setStatus("Signing in…");
     try {
@@ -135,14 +132,11 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          username: username.trim(),
-          password,
-        }),
+        body: JSON.stringify({ account }),
       });
       const data = (await res.json()) as { error?: string; user?: AuthUser };
       if (!res.ok || !data.user) {
-        fail(data.error || "Invalid username or password.");
+        fail(data.error || "Could not sign in.");
         setLoading(false);
         setStatus("");
         return;
@@ -150,8 +144,97 @@ export default function LoginPage() {
       setStatus("Opening dashboard…");
       applyUser(data.user);
       router.replace("/pipeline");
-      // Keep the overlay until this page unmounts so the form doesn't
-      // look idle while the dashboard route is compiling.
+    } catch {
+      fail("Network error. Try again.");
+      setLoading(false);
+      setStatus("");
+    }
+  }
+
+  async function sendCode(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setHint("");
+    setPreviewCode("");
+    if (!email.trim() || !email.includes("@")) {
+      fail("Enter a valid email.");
+      return;
+    }
+    const trimmed = email.trim().toLowerCase();
+    if (
+      trimmed === "member@essentia.com" ||
+      trimmed === "member@essentia.local" ||
+      trimmed === "member@essentia" ||
+      trimmed === "admin@essentia.com" ||
+      trimmed === "admin@essentia.local"
+    ) {
+      await signInTest(trimmed.startsWith("admin") ? "admin" : "member");
+      return;
+    }
+    setLoading(true);
+    setStatus("Sending code…");
+    try {
+      const res = await fetch("/api/auth/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        hint?: string;
+        previewCode?: string;
+        delivered?: boolean;
+      };
+      if (!res.ok) {
+        fail(data.error || "Could not send OTP.");
+        setLoading(false);
+        setStatus("");
+        return;
+      }
+      if (data.previewCode) {
+        setPreviewCode(data.previewCode);
+        setHint(
+          data.hint ||
+            "Email was not delivered — use the on-screen code to continue.",
+        );
+      }
+      setStep("code");
+      setLoading(false);
+      setStatus("");
+    } catch {
+      fail("Network error. Try again.");
+      setLoading(false);
+      setStatus("");
+    }
+  }
+
+  async function verifyCode(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!code.trim()) {
+      fail("Enter the 6-digit code.");
+      return;
+    }
+    setLoading(true);
+    setStatus("Signing in…");
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim(), code: code.trim() }),
+      });
+      const data = (await res.json()) as { error?: string; user?: AuthUser };
+      if (!res.ok || !data.user) {
+        fail(data.error || "Invalid or expired code.");
+        setLoading(false);
+        setStatus("");
+        return;
+      }
+      setStatus("Opening dashboard…");
+      applyUser(data.user);
+      router.replace("/pipeline");
     } catch {
       fail("Network error. Try again.");
       setLoading(false);
@@ -251,75 +334,156 @@ export default function LoginPage() {
           </p>
           <h1 className="heading mt-2 text-[30px]">{greeting()}</h1>
           <p className="label mt-2 text-fg-muted">
-            Sign in with username and password, or tap the demo account to
-            autofill.
+            Sign in with your email. We’ll send a one-time code.
           </p>
 
-          <form
-            key={`login-${shake}`}
-            onSubmit={signIn}
-            aria-busy={loading}
-            className={clsx("mt-8 space-y-4", shake > 0 && "animate-shake")}
-          >
-            <Field label="Username">
-              <input
-                type="text"
-                className={clsx(inputClass, error && "!border-error/60")}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
-                autoComplete="username"
-                autoFocus
-                disabled={loading}
-              />
-            </Field>
-            <Field label="Password">
-              <input
-                type="password"
-                className={clsx(inputClass, error && "!border-error/60")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                disabled={loading}
-              />
-            </Field>
-            {error && (
-              <p className="label border border-error/40 px-3 py-2 text-error">
-                {error}
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={loading}
-              className="group inline-flex w-full items-center justify-center gap-2 bg-accent px-4 py-3 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-accent-fg hover:opacity-90 disabled:opacity-60"
+          {step === "email" ? (
+            <form
+              key={`email-${shake}`}
+              onSubmit={sendCode}
+              aria-busy={loading}
+              className={clsx("mt-8 space-y-4", shake > 0 && "animate-shake")}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
-                  {status || "Signing in…"}
-                </>
-              ) : (
-                <>
-                  Enter portal
-                  <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-                </>
+              <Field label="Email">
+                <input
+                  type="email"
+                  className={clsx(inputClass, error && "!border-error/60")}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                  autoFocus
+                  disabled={loading}
+                />
+              </Field>
+              {error && (
+                <p className="label border border-error/40 px-3 py-2 text-error">
+                  {error}
+                </p>
               )}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
+                    {status || "Sending…"}
+                  </>
+                ) : (
+                  <>
+                    Send code
+                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            <form
+              key={`code-${shake}`}
+              onSubmit={verifyCode}
+              aria-busy={loading}
+              className={clsx("mt-8 space-y-4", shake > 0 && "animate-shake")}
+            >
+              <p className="label text-fg-muted">
+                Code sent to <span className="text-fg">{email}</span>
+              </p>
+              <Field label="One-time code">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className={clsx(
+                    inputClass,
+                    "tracking-[0.35em]",
+                    error && "!border-error/60",
+                  )}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  autoFocus
+                  disabled={loading}
+                />
+              </Field>
+              {previewCode && (
+                <p className="label border border-line px-3 py-2 text-fg">
+                  On-screen code (email not delivered): {previewCode}
+                </p>
+              )}
+              {hint && !previewCode && (
+                <p className="label text-fg-dim">{hint}</p>
+              )}
+              {error && (
+                <p className="label border border-error/40 px-3 py-2 text-error">
+                  {error}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
+                    {status || "Signing in…"}
+                  </>
+                ) : (
+                  <>
+                    Enter portal
+                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  setStep("email");
+                  setCode("");
+                  setPreviewCode("");
+                  setHint("");
+                  setError("");
+                }}
+                className="label w-full text-center text-fg-muted hover:text-fg"
+              >
+                Use a different email
+              </button>
+            </form>
+          )}
 
-          <div className="mt-6 border border-dashed border-line px-4 py-3">
-            <p className="label text-fg-dim">Demo credentials — click to fill</p>
+          <div className="mt-6 space-y-2 border border-dashed border-line px-4 py-3">
+            <p className="label text-fg-dim">Test accounts — no OTP</p>
+            <button
+              type="button"
+              onClick={() => void signInTest("member")}
+              disabled={loading || step === "code"}
+              className="w-full border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong hover:bg-surface-hover disabled:opacity-50"
+            >
+              <p className="label text-fg">member@essentia.com</p>
+              <p className="metric mt-0.5 text-fg-dim">
+                BD Member — assigned leads only
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => void signInTest("admin")}
+              disabled={loading || step === "code"}
+              className="w-full border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong hover:bg-surface-hover disabled:opacity-50"
+            >
+              <p className="label text-fg">admin@essentia.com</p>
+              <p className="metric mt-0.5 text-fg-dim">
+                BD Admin — assign leads, no HubSpot / user roles
+              </p>
+            </button>
             <button
               type="button"
               onClick={fillDemo}
-              disabled={loading}
-              className="mt-2 w-full border border-line bg-surface px-3 py-2.5 text-left hover:border-line-strong hover:bg-surface-hover disabled:opacity-50"
+              disabled={loading || step === "code"}
+              className="label w-full text-left text-fg-dim hover:text-fg"
             >
-              <p className="label text-fg">admin</p>
-              <p className="metric mt-0.5 text-fg-dim">
-                password123 · Super Admin
-              </p>
+              Or request an OTP for any email
             </button>
           </div>
         </div>

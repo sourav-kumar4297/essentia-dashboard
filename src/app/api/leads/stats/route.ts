@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
-import { canViewAllLeads } from "@/lib/rbac";
+import { canViewAllLeads, memberLeadWhere } from "@/lib/rbac";
 import {
   BD_CHANNEL_ORDER,
   WEBSITE_SITES,
@@ -17,9 +17,7 @@ export async function GET() {
 
   const roleWhere = canViewAllLeads(user.role)
     ? {}
-    : {
-        OR: [{ assignedToId: user.id }, { createdById: user.id }],
-      };
+    : memberLeadWhere(user.id);
 
   const where =
     Object.keys(roleWhere).length === 0 ? undefined : roleWhere;

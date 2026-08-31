@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { clsx } from "clsx";
@@ -19,6 +19,7 @@ import {
   Settings,
   UserRound,
   ChevronsUpDown,
+  ChevronDown,
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -73,6 +74,16 @@ const MAIN_NAV = [
   },
 ] as const;
 
+const DASH_HREFS = ["/pipeline", "/leads", "/board", "/channels"] as const;
+
+function isDashPath(pathname: string) {
+  return DASH_HREFS.some((href) =>
+    href === "/pipeline"
+      ? pathname === "/pipeline"
+      : pathname === href || pathname.startsWith(`${href}/`),
+  );
+}
+
 const ACCOUNT_NAV = [
   {
     href: "/profile",
@@ -98,6 +109,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const onDash = isDashPath(pathname);
+  const [dashOpen, setDashOpen] = useState(onDash);
+  const wasOnDash = useRef(onDash);
   const logoVariant = theme === "dark" ? "white" : "espresso";
   const displayName = user?.name ?? "User";
   const displayEmail = user?.email ?? "";
@@ -113,6 +127,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setProfileMenuOpen(false);
   }, [pathname]);
+
+  // Open when entering lead-platform pages; close when leaving. Manual toggle otherwise.
+  useEffect(() => {
+    if (onDash === wasOnDash.current) return;
+    wasOnDash.current = onDash;
+    setDashOpen(onDash);
+  }, [onDash]);
 
   useEffect(() => {
     if (localStorage.getItem(COLLAPSE_KEY) === "1") setCollapsed(true);
@@ -173,7 +194,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
           {!compact && (
-            <p className="heading mt-5 text-[17px]">
+            <p className="heading mt-5 text-[20px] leading-snug text-fg">
               Lead Management Platform
             </p>
           )}
@@ -185,15 +206,91 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             compact ? "px-1.5" : "px-2.5",
           )}
         >
-          {MAIN_NAV.map((section) => (
+          {MAIN_NAV.map((section) => {
+            const isDashGroup = !section.group;
+            const showDashChildren = isDashGroup && dashOpen;
+            return (
             <div key={section.group || "main"}>
               {!compact && section.group && (
                 <p className="label mb-1.5 px-2.5 tracking-[0.18em] text-fg-dim uppercase">
                   {section.group}
                 </p>
               )}
-              <ul className="space-y-0.5">
-                {section.items.map((item) => {
+              {isDashGroup && !compact && (
+                <div
+                  className={clsx(
+                    "nav-link relative z-10 mb-0.5 flex w-full items-center gap-1 px-1 py-1",
+                    onDash || dashOpen
+                      ? "text-fg"
+                      : "text-fg-muted",
+                  )}
+                >
+                  <Link
+                    href="/pipeline"
+                    onClick={() => {
+                      startNav("/pipeline");
+                      setDashOpen(true);
+                      setProfileMenuOpen(false);
+                      onNavigate?.();
+                    }}
+                    className={clsx(
+                      "flex min-w-0 flex-1 items-center gap-3 px-1.5 py-1.5 transition hover:bg-surface-hover hover:text-fg",
+                      pathname === "/pipeline" && "nav-link-active",
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "flex h-8 w-8 shrink-0 items-center justify-center border",
+                        onDash || dashOpen
+                          ? "border-line-strong bg-bg/50"
+                          : "border-line",
+                      )}
+                    >
+                      <LayoutDashboard
+                        className="h-3.5 w-3.5"
+                        strokeWidth={1.5}
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="label block text-fg">Dashboard</span>
+                      <span className="metric block text-fg-dim">
+                        Lead platform
+                      </span>
+                    </span>
+                  </Link>
+                  <button
+                    type="button"
+                    aria-label={dashOpen ? "Collapse dashboard menu" : "Expand dashboard menu"}
+                    aria-expanded={dashOpen}
+                    aria-controls="sidebar-dash-menu"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDashOpen((v) => !v);
+                    }}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center border border-transparent text-fg-dim transition hover:border-line hover:bg-surface-hover hover:text-fg"
+                  >
+                    <ChevronDown
+                      className={clsx(
+                        "h-3.5 w-3.5 transition-transform duration-200",
+                        dashOpen && "rotate-180",
+                      )}
+                      strokeWidth={1.5}
+                    />
+                  </button>
+                </div>
+              )}
+              {(compact || !isDashGroup || showDashChildren) && (
+              <ul
+                id={isDashGroup ? "sidebar-dash-menu" : undefined}
+                className="space-y-0.5"
+              >
+                {section.items
+                  .filter(
+                    (item) =>
+                      compact || !isDashGroup || item.href !== "/pipeline",
+                  )
+                  .map((item) => {
                   const active =
                     item.href === "/pipeline"
                       ? pathname === "/pipeline"
@@ -219,6 +316,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           compact
                             ? "justify-center px-1 py-2.5"
                             : "gap-3 px-2.5 py-2.5",
+                          !compact && isDashGroup && "ml-3",
                           active
                             ? "nav-link-active"
                             : pending
@@ -256,8 +354,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   );
                 })}
               </ul>
+              )}
             </div>
-          ))}
+            );
+          })}
         </nav>
         </div>
 
@@ -419,7 +519,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-bg text-fg">
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-bg text-fg">
       {profileMenuOpen && (
         <button
           type="button"
@@ -434,6 +534,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           "no-print fixed inset-y-0 left-0 z-40 hidden h-screen flex-col overflow-hidden border-r border-line bg-sidebar transition-[width] duration-200 ease-out md:flex",
           collapsed ? "w-[72px]" : "w-[268px]",
         )}
+        style={{
+          background:
+            "linear-gradient(180deg, var(--sidebar) 0%, color-mix(in srgb, var(--sidebar) 92%, var(--bg-soft)) 100%)",
+        }}
       >
         <div className="flex h-full min-h-0 flex-col">{navBody({ compact: collapsed })}</div>
       </aside>
@@ -467,12 +571,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div
         className={clsx(
-          "flex min-h-screen min-w-0 flex-1 flex-col transition-[padding] duration-200 ease-out",
+          "flex h-dvh min-h-0 min-w-0 flex-1 flex-col transition-[padding] duration-200 ease-out",
           collapsed ? "md:pl-[72px]" : "md:pl-[268px]",
         )}
       >
         <header
-          className="no-print sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line px-4 backdrop-blur-md md:px-8"
+          className="no-print sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-4 backdrop-blur-md md:px-8"
           style={{ background: "var(--header)" }}
         >
           <div className="flex items-center gap-3">
@@ -504,7 +608,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/leads?new=1"
               onClick={() => startNav("/leads?new=1")}
-              className="hidden items-center gap-1.5 border border-line px-3 py-1.5 font-body text-[11px] font-light uppercase tracking-[0.14em] text-fg transition hover:bg-surface active:scale-[0.98] sm:inline-flex"
+              className="hidden items-center gap-1.5 bg-fg px-3.5 py-1.5 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-bg shadow-[var(--elev-sm)] transition hover:opacity-90 active:scale-[0.98] sm:inline-flex"
             >
               <Plus className="h-3.5 w-3.5" />
               New Lead
@@ -516,15 +620,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <main
           className={clsx(
-            "shell-main min-w-0 flex-1 py-6 md:py-8",
+            "shell-main flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto py-6 md:py-8",
             wide ? "px-3 md:px-4 lg:px-5" : "px-4 md:px-6 lg:px-8",
           )}
         >
           <div
             key={pathname}
             className={clsx(
-              "page-enter mx-auto min-w-0",
-              wide ? "max-w-none w-full" : "max-w-5xl",
+              "page-enter mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col",
+              wide ? "max-w-none" : "max-w-5xl",
             )}
           >
             {children}

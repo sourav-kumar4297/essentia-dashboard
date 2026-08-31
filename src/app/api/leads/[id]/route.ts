@@ -5,6 +5,8 @@ import {
   canAccessLead,
   canAssignLeads,
   canViewAllLeads,
+  isHotOrWarm,
+  memberCanSetStatus,
 } from "@/lib/rbac";
 import type { BdLeadStatus, ReferralApproval } from "@/lib/bd-types";
 
@@ -55,9 +57,32 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Rejected personal referrals: Member may edit and auto-resubmit to PENDING
   const body = (await req.json()) as Record<string, unknown>;
   const data: Record<string, unknown> = {};
+  const member = !canViewAllLeads(user.role);
+
+  if (body.returnToAdmin === true) {
+    if (member && existing.assignedToId !== user.id) {
+      return NextResponse.json(
+        { error: "Only the assigned member can return this lead." },
+        { status: 403 },
+      );
+    }
+    const qual =
+      typeof body.qualification === "string"
+        ? body.qualification
+        : existing.qualification;
+    if (!isHotOrWarm(qual)) {
+      return NextResponse.json(
+        { error: "Mark the lead Hot or Warm before returning it to Admin." },
+        { status: 400 },
+      );
+    }
+    if (typeof body.qualification === "string") {
+      data.qualification = body.qualification;
+    }
+    data.assignedToId = null;
+  }
 
   const stringFields = [
     "name",
@@ -76,10 +101,17 @@ export async function PATCH(req: Request, { params }: Params) {
   ] as const;
 
   for (const key of stringFields) {
-    if (key in body) {
+    if (key in body && body.returnToAdmin !== true) {
       const v = body[key];
       data[key] = v === null || v === undefined ? null : String(v);
     }
+  }
+  if (
+    body.returnToAdmin === true &&
+    typeof body.qualification === "string" &&
+    !("qualification" in data)
+  ) {
+    data.qualification = body.qualification;
   }
 
   if ("dealValue" in body) {
@@ -89,44 +121,61 @@ export async function PATCH(req: Request, { params }: Params) {
         : Number(body.dealValue);
   }
 
-  for (const key of [
-    "pioReleased",
-    "firstPaymentReceived",
-    "docsComplete",
-    "handoverComplete",
-  ] as const) {
-    if (key in body) data[key] = Boolean(body[key]);
+  if (!member) {
+    for (const key of [
+      "pioReleased",
+      "firstPaymentReceived",
+      "docsComplete",
+      "handoverComplete",
+    ] as const) {
+      if (key in body) data[key] = Boolean(body[key]);
+    }
   }
 
   if ("status" in body && typeof body.status === "string") {
+    if (member && !memberCanSetStatus(body.status)) {
+      return NextResponse.json(
+        {
+          error:
+            "Members can set New, Contacted, In Discussion, Hold or Lost. Return Hot/Warm leads to Admin for the next team.",
+        },
+        { status: 403 },
+      );
+    }
     data.status = body.status as BdLeadStatus;
     if (body.status !== "NEW" && !existing.firstContactedAt) {
       data.firstContactedAt = new Date();
     }
   }
 
-  if ("assignedToId" in body) {
+  if ("assignedToId" in body && body.returnToAdmin !== true) {
     if (!canAssignLeads(user.role)) {
       return NextResponse.json(
         { error: "Only Admin can assign leads." },
         { status: 403 },
       );
     }
-    data.assignedToId = body.assignedToId
-      ? String(body.assignedToId)
-      : null;
+    const nextId = body.assignedToId ? String(body.assignedToId) : null;
+    if (nextId) {
+      const target = await prisma.user.findUnique({ where: { id: nextId } });
+      if (!target || target.role !== "MEMBER") {
+        return NextResponse.json(
+          { error: "Leads can only be assigned to BD Members." },
+          { status: 400 },
+        );
+      }
+    }
+    data.assignedToId = nextId;
   }
 
-  // Resubmit rejected personal referral
   if (
     existing.isPersonalReferral &&
     existing.referralApproval === "REJECTED" &&
-    !canViewAllLeads(user.role)
+    member
   ) {
     data.referralApproval = "PENDING" satisfies ReferralApproval;
   }
 
-  // Explicit resubmit flag
   if (body.resubmitReferral === true && existing.isPersonalReferral) {
     data.referralApproval = "PENDING";
   }
@@ -144,6 +193,32 @@ export async function PATCH(req: Request, { params }: Params) {
         createdById: user.id,
         type: "STATUS",
         body: `Status changed to ${String(data.status)}.`,
+      },
+    });
+  }
+
+  if (body.returnToAdmin === true) {
+    await prisma.leadActivity.create({
+      data: {
+        leadId: id,
+        createdById: user.id,
+        type: "NOTE",
+        body: `Returned to Admin — ${String(data.qualification ?? existing.qualification)} lead, client ready for next team.`,
+      },
+    });
+  } else if (
+    "assignedToId" in data &&
+    data.assignedToId !== existing.assignedToId
+  ) {
+    const name = lead.assignedTo?.name ?? "Unassigned";
+    await prisma.leadActivity.create({
+      data: {
+        leadId: id,
+        createdById: user.id,
+        type: "NOTE",
+        body: data.assignedToId
+          ? `Assigned to ${name}.`
+          : "Unassigned.",
       },
     });
   }

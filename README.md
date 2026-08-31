@@ -17,19 +17,14 @@ BD portal — lead capture to CRM handover.
 1. Go to https://resend.com and sign up  
 2. **API Keys → Create API Key** → copy `re_...`  
 3. Paste into `.env` as `RESEND_API_KEY=...`  
-4. Keep `RESEND_FROM="BD Portal <onboarding@resend.dev>"` for free testing  
-   - Sandbox can send **to your own Resend account email** first  
-   - Later: verify your domain in Resend → use `noreply@yourdomain.com`
+4. Set `RESEND_FROM` to an address **on that verified domain**  
+   - Example: `RESEND_FROM="Essentia <noreply@essentia.in>"`  
+   - `onboarding@resend.dev` can only send to your own Resend account email  
 5. Set `AUTH_SECRET` to any long random string (signs login JWTs)
 
-Login is **email OTP only**. Allowed addresses:
+Login is **email OTP**. Any valid email can request a code for testing.
 
-- `souravkumar4297@gmail.com`
-- `*@essentiahome.com`
-- `*@essentia.in`
-- `*@essentiaenvironments.com`
-
-Other Gmail / Yahoo / etc. are rejected.
+Resend’s free sandbox can only deliver to **your Resend account email** until you verify a domain. If delivery fails and `ALLOW_DEV_OTP=true`, the code is shown on the login screen.
 
 ## Local setup
 
@@ -43,7 +38,7 @@ npx prisma db seed
 npm run dev
 ```
 
-Seed: first successful OTP login creates the user. `souravkumar4297@gmail.com` is Super Admin. Other allowed emails start as MEMBER.
+Seed: first successful OTP login creates the user. `souravkumar4297@gmail.com` is Super Admin. Other emails start as MEMBER.
 
 ### Dev without Resend yet
 

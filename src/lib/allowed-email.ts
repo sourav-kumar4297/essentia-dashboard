@@ -1,22 +1,13 @@
-const ALLOWED_DOMAINS = [
-  "essentiahome.com",
-  "essentia.in",
-  "essentiaenvironments.com",
-] as const;
-
-const ALLOWED_EMAILS = ["souravkumar4297@gmail.com"] as const;
-
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/** Open for testing — any well-formed email can request an OTP. */
 export function isAllowedLoginEmail(email: string): boolean {
   const e = normalizeEmail(email);
   if (!e.includes("@")) return false;
-  if ((ALLOWED_EMAILS as readonly string[]).includes(e)) return true;
   const domain = e.split("@")[1] ?? "";
-  return (ALLOWED_DOMAINS as readonly string[]).includes(domain);
+  return domain.includes(".");
 }
 
-export const LOGIN_EMAIL_HINT =
-  "Use an @essentiahome.com, @essentia.in, or @essentiaenvironments.com email.";
+export const LOGIN_EMAIL_HINT = "Enter a valid email address.";

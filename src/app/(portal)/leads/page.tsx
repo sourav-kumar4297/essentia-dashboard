@@ -7,6 +7,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Check,
@@ -33,7 +34,7 @@ import {
   type ReferralApproval,
 } from "@/lib/bd-types";
 import { BD_SOURCE_OPTIONS } from "@/lib/bd-channels";
-import { canApproveReferrals, canAssignLeads } from "@/lib/rbac";
+import { canApproveReferrals, canAssignLeads, canSyncHubspot, isHotOrWarm, MEMBER_STATUSES } from "@/lib/rbac";
 import { clsx } from "clsx";
 import { format } from "date-fns";
 
@@ -84,6 +85,7 @@ function LeadsInner() {
   const [sinceFilter, setSinceFilter] = useState("all");
   const [platformFilter, setPlatformFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [poolFilter, setPoolFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [detailId, setDetailId] = useState<string | null>(search.get("focus"));
@@ -92,6 +94,12 @@ function LeadsInner() {
   const [assignees, setAssignees] = useState<
     { id: string; name: string; email: string; role: string }[]
   >([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkAssignTo, setBulkAssignTo] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkQual, setBulkQual] = useState("");
+  const [bulkMsg, setBulkMsg] = useState("");
 
   const { leads, total, loading, refresh } = useBdLeadsPage(page, pageSize, {
     status: statusFilter,
@@ -100,8 +108,82 @@ function LeadsInner() {
     since: sinceFilter,
     source: platformFilter,
     qualification: typeFilter,
+    pool: poolFilter,
   });
-  useHubspotLiveSync(refresh);
+  useHubspotLiveSync(refresh, Boolean(user && canSyncHubspot(user.role)));
+
+  const members = assignees.filter((a) => a.role === "MEMBER");
+  const pageIds = leads.map((l) => l.id);
+  const allPageSelected =
+    pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
+  const statusOptions = isAdmin ? STATUSES : MEMBER_STATUSES;
+
+  useEffect(() => {
+    setSelected([]);
+    setBulkMsg("");
+  }, [
+    page,
+    pageSize,
+    statusFilter,
+    queryApplied,
+    sortBy,
+    sinceFilter,
+    platformFilter,
+    typeFilter,
+    poolFilter,
+  ]);
+
+  function toggleOne(id: string) {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
+  function toggleAllPage() {
+    setSelected((prev) => {
+      if (allPageSelected) return prev.filter((id) => !pageIds.includes(id));
+      return [...new Set([...prev, ...pageIds])];
+    });
+  }
+
+  async function runBulk(body: Record<string, unknown>) {
+    if (selected.length === 0) return;
+    setBulkBusy(true);
+    setBulkMsg("");
+    try {
+      const res = await fetch("/api/leads/bulk", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selected, ...body }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        updated?: number;
+        errors?: string[];
+      };
+      if (!res.ok) {
+        setBulkMsg(data.error || "Bulk action failed.");
+        setBulkBusy(false);
+        return;
+      }
+      const fail = data.errors?.length ?? 0;
+      setBulkMsg(
+        fail
+          ? `Updated ${data.updated ?? 0}. ${fail} skipped.`
+          : `Updated ${data.updated ?? 0} lead${(data.updated ?? 0) === 1 ? "" : "s"}.`,
+      );
+      setSelected([]);
+      setBulkAssignTo("");
+      setBulkStatus("");
+      setBulkQual("");
+      await refresh();
+    } catch {
+      setBulkMsg("Network error.");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
 
@@ -136,14 +218,14 @@ function LeadsInner() {
   const editLead = leads.find((l) => l.id === editId) ?? null;
 
   return (
-    <div className="w-full min-w-0">
+    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
       <PageHeader
         eyebrow="Lead platform"
         title="All Leads"
         description={
           isAdmin
-            ? "All BD leads — assign, approve referrals, move status."
-            : "Your assigned leads and referrals."
+            ? "Assign members, take back Hot/Warm leads, send the next team later."
+            : "Call your assigned leads, log what the client said, and return Hot/Warm ones to Admin."
         }
         actions={
           <Button
@@ -160,7 +242,7 @@ function LeadsInner() {
 
       <PlatformTabs />
 
-      <div className="mb-4 flex w-full min-w-0 flex-wrap items-stretch border border-line bg-surface">
+      <div className="mb-4 flex w-full min-w-0 shrink-0 flex-wrap items-stretch border border-line bg-surface shadow-[var(--elev-sm)]">
         <div className="relative min-w-[180px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-muted" />
           <input
@@ -235,26 +317,152 @@ function LeadsInner() {
             ...STATUSES.map((s) => [s, BD_STATUS_LABELS[s]] as [string, string]),
           ]}
         />
+        {isAdmin && (
+          <FilterSelect
+            label="Pool"
+            value={poolFilter}
+            onChange={(v) => {
+              setPoolFilter(v);
+              setPage(1);
+            }}
+            options={[
+              ["all", "All owners"],
+              ["unassigned", "Unassigned"],
+              ["ready", "Ready for Admin"],
+            ]}
+          />
+        )}
       </div>
 
+      {selected.length > 0 && (
+        <div className="mb-3 flex w-full shrink-0 flex-wrap items-center gap-2 border border-line bg-surface px-3 py-2.5 shadow-[var(--elev-sm)]">
+          <p className="label text-fg">
+            {selected.length} selected
+          </p>
+          {isAdmin && (
+            <>
+              <select
+                className={clsx(inputClass, "max-w-[180px]")}
+                value={bulkAssignTo}
+                onChange={(e) => setBulkAssignTo(e.target.value)}
+                disabled={bulkBusy}
+              >
+                <option value="">Assign to member…</option>
+                <option value="__none">— Unassigned —</option>
+                {members.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="secondary"
+                disabled={bulkBusy || !bulkAssignTo}
+                onClick={() =>
+                  void runBulk({
+                    assignedToId:
+                      bulkAssignTo === "__none" ? null : bulkAssignTo,
+                  })
+                }
+              >
+                Assign
+              </Button>
+            </>
+          )}
+          <select
+            className={clsx(inputClass, "max-w-[160px]")}
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value)}
+            disabled={bulkBusy}
+          >
+            <option value="">Set status…</option>
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>
+                {BD_STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="secondary"
+            disabled={bulkBusy || !bulkStatus}
+            onClick={() => void runBulk({ status: bulkStatus })}
+          >
+            Status
+          </Button>
+          <select
+            className={clsx(inputClass, "max-w-[140px]")}
+            value={bulkQual}
+            onChange={(e) => setBulkQual(e.target.value)}
+            disabled={bulkBusy}
+          >
+            <option value="">Set type…</option>
+            {QUAL_TYPES.map((q) => (
+              <option key={q} value={q}>
+                {q}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="secondary"
+            disabled={bulkBusy || !bulkQual}
+            onClick={() => void runBulk({ qualification: bulkQual })}
+          >
+            Type
+          </Button>
+          {!isAdmin && (
+            <Button
+              variant="secondary"
+              disabled={bulkBusy}
+              onClick={() => void runBulk({ returnToAdmin: true })}
+            >
+              Return to Admin
+            </Button>
+          )}
+          <button
+            type="button"
+            className="label ml-auto text-fg-muted hover:text-fg"
+            disabled={bulkBusy}
+            onClick={() => {
+              setSelected([]);
+              setBulkMsg("");
+            }}
+          >
+            Clear
+          </button>
+          {bulkMsg && (
+            <p className="label w-full text-fg-dim">{bulkMsg}</p>
+          )}
+        </div>
+      )}
+
       <div
-        className="min-w-0 w-full border border-line bg-surface"
+        className="flex min-h-0 w-full flex-1 flex-col border border-line bg-surface shadow-[var(--elev)]"
         aria-busy={loading}
       >
-        <div className="min-w-0 w-full overflow-x-auto">
-          <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
+        <div className="min-h-0 min-w-0 w-full flex-1 overflow-auto">
+          <table className="w-full min-w-[860px] table-fixed border-collapse text-left">
             <colgroup>
-              <col className="w-[22%]" />
+              <col className="w-[40px]" />
+              <col className="w-[18%]" />
+              <col className="w-[12%]" />
+              <col className="w-[6%]" />
               <col className="w-[14%]" />
-              <col className="w-[7%]" />
-              <col className="w-[16%]" />
-              <col className="w-[13%]" />
-              <col className="w-[14%]" />
+              <col className="w-[15%]" />
+              <col className="w-[11%]" />
               <col className="w-[10%]" />
               <col className="w-[4%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-line">
+                <th className="px-2 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={toggleAllPage}
+                    aria-label="Select all on page"
+                    className="h-3.5 w-3.5 accent-fg"
+                  />
+                </th>
                 {[
                   "Client",
                   "Arrived",
@@ -279,7 +487,7 @@ function LeadsInner() {
               {!loading && leads.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="label px-3 py-10 text-center text-fg-dim"
                   >
                     No leads match.
@@ -291,8 +499,23 @@ function LeadsInner() {
                   <tr
                     key={l.id}
                     onClick={() => setDetailId(l.id)}
-                    className="cursor-pointer border-b border-line transition last:border-b-0 hover:bg-surface-hover"
+                    className={clsx(
+                      "cursor-pointer border-b border-line transition last:border-b-0 hover:bg-surface-hover",
+                      selected.includes(l.id) && "bg-surface-hover",
+                    )}
                   >
+                    <td
+                      className="px-2 py-3.5"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(l.id)}
+                        onChange={() => toggleOne(l.id)}
+                        aria-label={`Select ${l.name}`}
+                        className="h-3.5 w-3.5 accent-fg"
+                      />
+                    </td>
                     <td className="min-w-0 px-3 py-3.5">
                       <p className="label truncate text-fg">{l.name}</p>
                       <p className="metric mt-0.5 truncate text-fg-dim">
@@ -363,7 +586,7 @@ function LeadsInner() {
           </table>
         </div>
 
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 border-t border-line bg-bg px-3 py-2.5">
+        <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-3 border-t border-line bg-bg px-3 py-2.5">
           <p className="label text-fg-muted">
             {total.toLocaleString()} row{total === 1 ? "" : "s"} total
           </p>
@@ -438,7 +661,8 @@ function LeadsInner() {
             lead={detail}
             isAdmin={Boolean(user && canApproveReferrals(user.role))}
             canAssign={Boolean(user && canAssignLeads(user.role))}
-            assignees={assignees}
+            currentUserId={user?.id ?? ""}
+            assignees={assignees.filter((a) => a.role === "MEMBER")}
             onChanged={async () => {
               await refresh();
             }}
@@ -462,7 +686,7 @@ function LeadsInner() {
           <LeadFormBody
             lead={editLead}
             isAdmin={isAdmin}
-            assignees={assignees}
+            assignees={assignees.filter((a) => a.role === "MEMBER")}
             onSaved={async () => {
               await refresh();
               setFormOpen(false);
@@ -538,7 +762,7 @@ function PagerBtn({
 
 function StatusPill({ status }: { status: BdLeadStatus }) {
   return (
-    <span className="label inline-flex border border-line-strong px-2 py-1 uppercase tracking-[0.12em] text-fg">
+    <span className="label inline-flex whitespace-nowrap border border-fg/25 bg-fg/[0.06] px-2 py-1 uppercase tracking-[0.08em] text-fg">
       {BD_STATUS_LABELS[status]}
     </span>
   );
@@ -575,6 +799,12 @@ function LeadSidePanel({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -587,15 +817,17 @@ function LeadSidePanel({
     };
   }, [onClose]);
 
-  return (
-    <div className="fixed inset-0 z-[70]">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[70] h-dvh w-screen">
       <button
         type="button"
         aria-label="Close"
         onClick={onClose}
         className="absolute inset-0 bg-black/50 animate-fade"
       />
-      <aside className="absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col border-l border-line bg-bg animate-slide-right">
+      <aside className="absolute right-0 top-0 flex h-dvh max-h-dvh w-full max-w-[440px] flex-col border-l border-line bg-bg animate-slide-right">
         <header className="flex shrink-0 items-center justify-between border-b border-line px-6 py-5">
           <h2 className="heading text-[20px]">{title}</h2>
           <button
@@ -610,7 +842,8 @@ function LeadSidePanel({
           {children}
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -618,6 +851,7 @@ function LeadDetailBody({
   lead,
   isAdmin,
   canAssign,
+  currentUserId,
   assignees,
   onChanged,
   onEdit,
@@ -625,22 +859,59 @@ function LeadDetailBody({
   lead: BdLeadRow;
   isAdmin: boolean;
   canAssign: boolean;
+  currentUserId: string;
   assignees: { id: string; name: string; email: string }[];
   onChanged: () => Promise<void>;
   onEdit: () => void;
 }) {
+  const [full, setFull] = useState(lead);
   const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
   const [assignee, setAssignee] = useState(lead.assignedToId ?? "");
   const [crmLead, setCrmLead] = useState(lead.crmTeamLead ?? "");
+  const [qual, setQual] = useState(lead.qualification);
+  const [callNote, setCallNote] = useState("");
+
+  const statuses = isAdmin ? STATUSES : MEMBER_STATUSES;
+  const assignedToMe = full.assignedToId === currentUserId;
+  const canReturn =
+    assignedToMe && isHotOrWarm(qual) && Boolean(full.assignedToId);
+
+  async function reload() {
+    const res = await fetch(`/api/leads/${lead.id}`, { credentials: "include" });
+    if (!res.ok) return;
+    const data = (await res.json()) as { lead: BdLeadRow };
+    setFull(data.lead);
+    setQual(data.lead.qualification);
+    setAssignee(data.lead.assignedToId ?? "");
+    setCrmLead(data.lead.crmTeamLead ?? "");
+  }
+
+  useEffect(() => {
+    setFull(lead);
+    setQual(lead.qualification);
+    setAssignee(lead.assignedToId ?? "");
+    setCrmLead(lead.crmTeamLead ?? "");
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id]);
 
   async function patch(body: Record<string, unknown>) {
     setBusy("save");
-    await fetch(`/api/leads/${lead.id}`, {
+    setError("");
+    const res = await fetch(`/api/leads/${lead.id}`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error || "Could not save.");
+      setBusy("");
+      return;
+    }
+    await reload();
     await onChanged();
     setBusy("");
   }
@@ -653,6 +924,7 @@ function LeadDetailBody({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ decision }),
     });
+    await reload();
     await onChanged();
     setBusy("");
   }
@@ -663,22 +935,51 @@ function LeadDetailBody({
       method: "POST",
       credentials: "include",
     });
+    await reload();
     await onChanged();
     setBusy("");
   }
 
+  async function logCall() {
+    const text = callNote.trim();
+    if (!text) {
+      setError("Write what the client discussed.");
+      return;
+    }
+    setBusy("call");
+    setError("");
+    const res = await fetch(`/api/leads/${lead.id}/activity`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "CALL", body: text, qualification: qual }),
+    });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      setError(data.error || "Could not save call.");
+      setBusy("");
+      return;
+    }
+    setCallNote("");
+    await reload();
+    await onChanged();
+    setBusy("");
+  }
+
+  const view = full;
+
   return (
     <div className="space-y-5">
       <div>
-        <p className="heading text-[22px]">{lead.name}</p>
+        <p className="heading text-[22px]">{view.name}</p>
         <p className="metric mt-1 text-fg-dim">
-          {lead.phone} · {lead.email || "No email"}
+          {view.phone} · {view.email || "No email"}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <StatusPill status={lead.status} />
+          <StatusPill status={view.status} />
           <QualBadge
             q={
-              lead.qualification as "Hot" | "Warm" | "Cold" | "Unqualified"
+              view.qualification as "Hot" | "Warm" | "Cold" | "Unqualified"
             }
           />
         </div>
@@ -686,12 +987,12 @@ function LeadDetailBody({
 
       <dl className="grid grid-cols-2 gap-3 border border-line p-4">
         {[
-          ["Source", lead.source],
-          ["Territory", lead.territory],
-          ["Location", lead.location || "—"],
-          ["Owner", lead.assignedTo?.name ?? "—"],
-          ["Unit", lead.businessUnit],
-          ["Project", lead.projectType],
+          ["Source", view.source],
+          ["Territory", view.territory],
+          ["Location", view.location || "—"],
+          ["Owner", view.assignedTo?.name ?? "Unassigned"],
+          ["Unit", view.businessUnit],
+          ["Project", view.projectType],
         ].map(([k, v]) => (
           <div key={k}>
             <dt className="label text-fg-dim">{k}</dt>
@@ -700,16 +1001,16 @@ function LeadDetailBody({
         ))}
       </dl>
 
-      {lead.notes && (
-        <p className="label border border-line p-3 text-fg-muted">{lead.notes}</p>
+      {view.notes && (
+        <p className="label border border-line p-3 text-fg-muted">{view.notes}</p>
       )}
 
-      {lead.isPersonalReferral && (
+      {view.isPersonalReferral && (
         <div className="border border-line p-4">
           <p className="label text-fg">
-            Personal referral · {lead.referralApproval}
+            Personal referral · {view.referralApproval}
           </p>
-          {isAdmin && lead.referralApproval === "PENDING" && (
+          {isAdmin && view.referralApproval === "PENDING" && (
             <div className="mt-3 flex gap-2">
               <Button
                 disabled={busy === "APPROVED"}
@@ -729,13 +1030,33 @@ function LeadDetailBody({
         </div>
       )}
 
+      <Field label="Potential">
+        <select
+          className={inputClass}
+          value={qual}
+          onChange={(e) => {
+            setQual(e.target.value);
+            void patch({ qualification: e.target.value });
+          }}
+        >
+          {QUAL_TYPES.map((q) => (
+            <option key={q} value={q}>
+              {q}
+            </option>
+          ))}
+        </select>
+      </Field>
+
       <Field label="Status">
         <select
           className={inputClass}
-          value={lead.status}
+          value={view.status}
           onChange={(e) => patch({ status: e.target.value })}
         >
-          {STATUSES.map((s) => (
+          {!statuses.includes(view.status) && (
+            <option value={view.status}>{BD_STATUS_LABELS[view.status]}</option>
+          )}
+          {statuses.map((s) => (
             <option key={s} value={s}>
               {BD_STATUS_LABELS[s]}
             </option>
@@ -743,7 +1064,58 @@ function LeadDetailBody({
         </select>
       </Field>
 
-      {(lead.status === "LOST" || lead.status === "HOLD") && (
+      <div className="border border-line p-4">
+        <p className="label mb-2 text-fg">Call notes</p>
+        <textarea
+          rows={3}
+          className={clsx(inputClass, "resize-none")}
+          placeholder="What the client discussed, interest, next step…"
+          value={callNote}
+          onChange={(e) => setCallNote(e.target.value)}
+        />
+        <Button
+          className="mt-2 w-full"
+          variant="secondary"
+          disabled={busy === "call"}
+          onClick={() => void logCall()}
+        >
+          Save call
+        </Button>
+        {(view.activities ?? []).length > 0 && (
+          <ul className="mt-4 space-y-2">
+            {view.activities!.map((a) => (
+              <li key={a.id} className="border-t border-line pt-2">
+                <p className="metric text-fg-dim">
+                  {a.type} · {a.createdBy?.name ?? "—"} ·{" "}
+                  {format(new Date(a.createdAt), "dd MMM, HH:mm")}
+                </p>
+                <p className="label mt-0.5 text-fg-muted">{a.body}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {assignedToMe && (
+        <div className="border border-line p-4">
+          <p className="label text-fg">Ready for Admin</p>
+          <p className="metric mt-1 text-fg-dim">
+            When the lead is Hot or Warm and the client is good to go, send it
+            back so Admin can assign the next team.
+          </p>
+          <Button
+            className="mt-3 w-full"
+            disabled={!canReturn || busy === "save"}
+            onClick={() =>
+              patch({ returnToAdmin: true, qualification: qual })
+            }
+          >
+            Return to Admin
+          </Button>
+        </div>
+      )}
+
+      {(view.status === "LOST" || view.status === "HOLD") && (
         <Button
           variant="secondary"
           disabled={busy === "reopen"}
@@ -754,7 +1126,7 @@ function LeadDetailBody({
       )}
 
       {canAssign && (
-        <Field label="Assign to">
+        <Field label="Assign to member">
           <div className="flex gap-2">
             <select
               className={inputClass}
@@ -779,22 +1151,28 @@ function LeadDetailBody({
         </Field>
       )}
 
-      {lead.status === "WON" && (
+      {error && (
+        <p className="label border border-error/50 px-3 py-2 text-error">
+          {error}
+        </p>
+      )}
+
+      {isAdmin && view.status === "WON" && (
         <div className="space-y-3 border border-line p-4">
           <p className="label text-fg">Post-Won checklist</p>
           {(
             [
-              ["pioReleased", "Design PIO released", lead.pioReleased],
+              ["pioReleased", "Design PIO released", view.pioReleased],
               [
                 "firstPaymentReceived",
                 "First payment received",
-                lead.firstPaymentReceived,
+                view.firstPaymentReceived,
               ],
-              ["docsComplete", "Documents complete", lead.docsComplete],
+              ["docsComplete", "Documents complete", view.docsComplete],
               [
                 "handoverComplete",
                 "Handover complete",
-                lead.handoverComplete,
+                view.handoverComplete,
               ],
             ] as const
           ).map(([key, label, value]) => (
@@ -1011,7 +1389,7 @@ function LeadFormBody({
               }))
             }
           >
-            {STATUSES.map((s) => (
+            {(isAdmin ? STATUSES : MEMBER_STATUSES).map((s) => (
               <option key={s} value={s}>
                 {BD_STATUS_LABELS[s]}
               </option>
@@ -1021,7 +1399,7 @@ function LeadFormBody({
       )}
 
       {isAdmin && (
-        <Field label="Assign to">
+        <Field label="Assign to member">
           <select
             className={inputClass}
             value={form.assignedToId}

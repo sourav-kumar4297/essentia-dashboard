@@ -19,7 +19,7 @@ export function PlatformTabs() {
   const { pendingHref, startNav } = useNavProgress();
 
   return (
-    <div className="mb-5 flex flex-wrap gap-1 border-b border-line">
+    <div className="mb-5 flex flex-wrap gap-1 border-b border-line/80">
       {TABS.map((tab) => {
         const active =
           tab.href === "/pipeline"
@@ -35,12 +35,12 @@ export function PlatformTabs() {
             href={tab.href}
             onClick={() => startNav(tab.href)}
             className={clsx(
-              "label border-b-2 px-3 py-2.5 transition active:opacity-60",
+              "label relative -mb-px border-b-2 px-3.5 py-2.5 tracking-[0.04em] transition active:opacity-60",
               active
                 ? "border-fg text-fg"
                 : pending
                   ? "border-fg/40 text-fg animate-pulse-soft"
-                  : "border-transparent text-fg-muted hover:text-fg",
+                  : "border-transparent text-fg-muted hover:border-line-strong hover:text-fg",
             )}
           >
             {label}
