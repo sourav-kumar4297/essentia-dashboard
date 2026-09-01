@@ -1,56 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { createSession, ensureUser } from "@/lib/session";
-import { SESSION_COOKIE, SESSION_TTL_MS, type Role } from "@/lib/bd-types";
-
-/** Production + local test accounts — no OTP. */
-const ACCOUNTS: Record<
-  string,
-  { email: string; name: string; role: Role; aliases: string[] }
-> = {
-  admin: {
-    email: "admin@essentia.com",
-    name: "BD Admin",
-    role: "ADMIN",
-    aliases: [
-      "admin",
-      "admin@essentia.com",
-      "admin@essentia.local",
-    ],
-  },
-  member: {
-    email: "member@essentia.com",
-    name: "BD Member",
-    role: "MEMBER",
-    aliases: [
-      "member",
-      "member@essentia.com",
-      "member@essentia",
-      "member@essentia.local",
-    ],
-  },
-};
-
-const DEMO_PASSWORD = "password123";
-
-function resolveAccount(body: {
-  account?: string;
-  username?: string;
-  password?: string;
-  demo?: boolean;
-}) {
-  if (body.account && ACCOUNTS[body.account]) return ACCOUNTS[body.account];
-  if (body.demo === true) return ACCOUNTS.admin;
-
-  const username = (body.username ?? "").trim().toLowerCase();
-  const password = body.password ?? "";
-  if (password && password !== DEMO_PASSWORD) return null;
-
-  for (const acc of Object.values(ACCOUNTS)) {
-    if (acc.aliases.includes(username)) return acc;
-  }
-  return null;
-}
+import { signInTestAccount } from "@/lib/test-login";
+import { SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/bd-types";
 
 function isDbUnreachable(err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
@@ -78,52 +28,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = (await req.json().catch(() => ({}))) as {
-      account?: string;
-      username?: string;
-      password?: string;
-      demo?: boolean;
-    };
-
-    const account = resolveAccount(body);
-    if (!account) {
+    const body = (await req.json().catch(() => ({}))) as { email?: string };
+    const email = body.email?.trim() ?? "";
+    if (!email || !email.includes("@")) {
       return NextResponse.json(
-        { error: "Use a test account on this screen to sign in." },
-        { status: 401 },
+        { error: "A valid email is required." },
+        { status: 400 },
       );
     }
 
-    const user = await withDbRetry(async () => {
-      const base = await ensureUser(account.email, account.name);
-      return prisma.user.update({
-        where: { id: base.id },
-        data: { name: account.name, role: account.role },
-      });
-    });
-
-    if (user.blocked) {
-      return NextResponse.json(
-        { error: "This account is blocked. Contact a Super Admin." },
-        { status: 403 },
-      );
+    const signedIn = await withDbRetry(() => signInTestAccount(email));
+    if (!signedIn) {
+      return NextResponse.json({ error: "Not a test account." }, { status: 401 });
     }
-
-    const token = await createSession({
-      id: user.id,
-      email: user.email,
-    });
 
     const res = NextResponse.json({
       ok: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role as Role,
-      },
+      user: signedIn.user,
     });
 
-    res.cookies.set(SESSION_COOKIE, token, {
+    res.cookies.set(SESSION_COOKIE, signedIn.token, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
@@ -134,6 +58,12 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("[auth/login]", err);
     const message = err instanceof Error ? err.message : "";
+    if (message === "ACCOUNT_BLOCKED") {
+      return NextResponse.json(
+        { error: "This account is blocked. Contact a Super Admin." },
+        { status: 403 },
+      );
+    }
     if (isDbUnreachable(err)) {
       return NextResponse.json(
         {

@@ -6,6 +6,8 @@ import {
   LOGIN_EMAIL_HINT,
   normalizeEmail,
 } from "@/lib/allowed-email";
+import { signInTestAccount } from "@/lib/test-login";
+import { SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/bd-types";
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +22,24 @@ export async function POST(req: Request) {
 
     if (!isAllowedLoginEmail(email)) {
       return NextResponse.json({ error: LOGIN_EMAIL_HINT }, { status: 400 });
+    }
+
+    const signedIn = await signInTestAccount(email);
+    if (signedIn) {
+      const res = NextResponse.json({
+        ok: true,
+        email,
+        directLogin: true,
+        user: signedIn.user,
+      });
+      res.cookies.set(SESSION_COOKIE, signedIn.token, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: SESSION_TTL_MS / 1000,
+      });
+      return res;
     }
 
     const code = await createOtp(email);
@@ -46,6 +66,13 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error(err);
+    const message = err instanceof Error ? err.message : "";
+    if (message === "ACCOUNT_BLOCKED") {
+      return NextResponse.json(
+        { error: "This account is blocked. Contact a Super Admin." },
+        { status: 403 },
+      );
+    }
     return NextResponse.json(
       { error: "Could not send OTP." },
       { status: 500 },

@@ -90,16 +90,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [slide, setSlide] = useState(0);
-  const [allowTestLogin, setAllowTestLogin] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/auth/config", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data: { allowTestLogin?: boolean }) => {
-        setAllowTestLogin(data.allowTestLogin === true);
-      })
-      .catch(() => setAllowTestLogin(false));
-  }, []);
 
   useEffect(() => {
     const t = setInterval(
@@ -151,11 +141,19 @@ export default function LoginPage() {
         hint?: string;
         previewCode?: string;
         delivered?: boolean;
+        directLogin?: boolean;
+        user?: AuthUser;
       };
       if (!res.ok) {
         fail(data.error || "Could not send OTP.");
         setLoading(false);
         setStatus("");
+        return;
+      }
+      if (data.directLogin && data.user) {
+        setStatus("Opening dashboard…");
+        applyUser(data.user);
+        router.replace("/pipeline");
         return;
       }
       if (data.previewCode) {
@@ -168,34 +166,6 @@ export default function LoginPage() {
       setStep("code");
       setLoading(false);
       setStatus("");
-    } catch {
-      fail("Network error. Try again.");
-      setLoading(false);
-      setStatus("");
-    }
-  }
-
-  async function testLogin(account: "admin" | "member") {
-    setError("");
-    setLoading(true);
-    setStatus("Signing in…");
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ account }),
-      });
-      const data = (await res.json()) as { error?: string; user?: AuthUser };
-      if (!res.ok || !data.user) {
-        fail(data.error || "Test login failed.");
-        setLoading(false);
-        setStatus("");
-        return;
-      }
-      setStatus("Opening dashboard…");
-      applyUser(data.user);
-      router.replace("/pipeline");
     } catch {
       fail("Network error. Try again.");
       setLoading(false);
@@ -372,37 +342,6 @@ export default function LoginPage() {
                   </>
                 )}
               </button>
-              {allowTestLogin && (
-                <div className="border-t border-line pt-4">
-                  <p className="label text-fg-muted">
-                    Test accounts (no OTP)
-                  </p>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => testLogin("admin")}
-                      className="border border-line px-3 py-2.5 text-left hover:border-fg disabled:opacity-60"
-                    >
-                      <span className="label block text-fg">BD Admin</span>
-                      <span className="label mt-0.5 block text-fg-muted">
-                        admin@essentia.com
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => testLogin("member")}
-                      className="border border-line px-3 py-2.5 text-left hover:border-fg disabled:opacity-60"
-                    >
-                      <span className="label block text-fg">BD Member</span>
-                      <span className="label mt-0.5 block text-fg-muted">
-                        member@essentia.com
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              )}
             </form>
           ) : (
             <form
