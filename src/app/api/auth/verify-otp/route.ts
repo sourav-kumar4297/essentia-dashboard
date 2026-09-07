@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     }
     if (message === "EMAIL_NOT_ALLOWED") {
       return NextResponse.json(
-        { error: "This email is not authorised. Contact a Super Admin." },
+        { error: LOGIN_EMAIL_HINT },
         { status: 403 },
       );
     }

@@ -13,6 +13,13 @@ async function main() {
       profileSetupComplete: false,
     },
     {
+      email: "akshin@essentia.in",
+      name: "Akshin",
+      role: "ADMIN",
+      team: "business-development",
+      profileSetupComplete: false,
+    },
+    {
       email: "lavanya@essentia.in",
       name: "Lavanya",
       role: "MEMBER",

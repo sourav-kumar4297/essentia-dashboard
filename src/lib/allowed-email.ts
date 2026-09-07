@@ -24,4 +24,4 @@ export function isAllowedLoginEmail(email: string): boolean {
 }
 
 export const LOGIN_EMAIL_HINT =
-  "This email is not authorised. Contact a Super Admin.";
+  "This email is not authorised. Contact your team leader.";

@@ -14,6 +14,11 @@ export const ALLOWED_LOGIN_USERS: Record<
     name: "PKV",
     team: "business-development",
   },
+  "akshin@essentia.in": {
+    role: "ADMIN",
+    name: "Akshin",
+    team: "business-development",
+  },
   "lavanya@essentia.in": {
     role: "MEMBER",
     name: "Lavanya",
