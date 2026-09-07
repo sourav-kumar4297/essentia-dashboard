@@ -65,3 +65,36 @@ export async function PATCH(req: Request, { params }: Params) {
   });
   return NextResponse.json({ user: updated });
 }
+
+/** Delete user — they can sign in again later as a fresh profile. */
+export async function DELETE(_req: Request, { params }: Params) {
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canManageUsers(user.role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await params;
+  if (id === user.id) {
+    return NextResponse.json(
+      { error: "You cannot remove your own account." },
+      { status: 400 },
+    );
+  }
+
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (target.role === "SUPERADMIN") {
+    return NextResponse.json(
+      { error: "Cannot remove a Super Admin." },
+      { status: 400 },
+    );
+  }
+
+  await prisma.user.delete({ where: { id } });
+  return NextResponse.json({ ok: true, removedEmail: target.email });
+}

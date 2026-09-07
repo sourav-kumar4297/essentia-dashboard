@@ -328,7 +328,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
+                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-light uppercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
               >
                 {loading ? (
                   <>
@@ -386,7 +386,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
+                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-light uppercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
               >
                 {loading ? (
                   <>

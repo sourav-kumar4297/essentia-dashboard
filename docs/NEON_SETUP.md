@@ -48,9 +48,9 @@ npx prisma db seed
 ```
 
 You should see seeded emails:
-- `admin@essentia.local`
-- `ops@essentia.local`
-- `bd@essentia.local`
+- `admin@essentia.com` (BD Admin)
+- `member@essentia.com` (BD Member)
+- Super Admin from `SUPERADMIN_EMAILS`
 
 ## 6. Confirm it worked
 Optional — open Neon → **Tables** / SQL Editor → you should see `User`, `Lead`, `Session`, etc.

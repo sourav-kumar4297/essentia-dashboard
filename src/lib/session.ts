@@ -67,12 +67,8 @@ export async function ensureUser(
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  const defaultAdmins = [
-    "admin@essentia.com",
-    "admin@essentia.local",
-    "ops@essentia.local",
-  ];
-  const defaultMembers = ["member@essentia.com", "member@essentia.local"];
+  const defaultAdmins = ["admin@essentia.com"];
+  const defaultMembers = ["member@essentia.com"];
   const isBdAdmin =
     !isSuper &&
     (adminEmails.includes(normalized) || defaultAdmins.includes(normalized));
@@ -148,11 +144,14 @@ export async function ensureUser(
   };
 }
 
-export async function createSession(user: {
-  id: string;
-  email: string;
-}): Promise<string> {
-  return signAuthJwt(user);
+export async function createSession(
+  user: {
+    id: string;
+    email: string;
+  },
+  opts?: { actorId?: string; actorEmail?: string },
+): Promise<string> {
+  return signAuthJwt(user, opts);
 }
 
 export async function destroySession(_token: string): Promise<void> {
@@ -170,12 +169,32 @@ export async function getSessionUser(): Promise<AuthUser | null> {
   const user = await prisma.user.findUnique({ where: { id: claims.sub } });
   if (!user || user.blocked) return null;
 
-  return {
+  const auth: AuthUser = {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role as Role,
   };
+
+  if (claims.actorId) {
+    const actor = await prisma.user.findUnique({
+      where: { id: claims.actorId },
+    });
+    if (
+      !actor ||
+      actor.blocked ||
+      (actor.role as Role) !== "SUPERADMIN"
+    ) {
+      return null;
+    }
+    auth.impersonator = {
+      id: actor.id,
+      email: actor.email,
+      name: actor.name,
+    };
+  }
+
+  return auth;
 }
 
 export async function requireUser(): Promise<AuthUser> {

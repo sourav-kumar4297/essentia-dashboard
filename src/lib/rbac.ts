@@ -30,6 +30,14 @@ export function canManageUsers(role: Role): boolean {
   return role === "SUPERADMIN";
 }
 
+/** True if this session is Super Admin, or Super Admin checked in as someone else. */
+export function isSuperAdminSession(user: {
+  role: Role;
+  impersonator?: unknown;
+}): boolean {
+  return user.role === "SUPERADMIN" || Boolean(user.impersonator);
+}
+
 /** Statuses a BD member may set while working a call. */
 export const MEMBER_STATUSES: BdLeadStatus[] = [
   "NEW",

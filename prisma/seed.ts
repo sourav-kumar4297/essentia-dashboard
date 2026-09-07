@@ -16,21 +16,6 @@ async function main() {
       role: "MEMBER",
     },
     {
-      email: "admin@essentia.local",
-      name: "BD Admin",
-      role: "ADMIN",
-    },
-    {
-      email: "member@essentia.local",
-      name: "BD Member",
-      role: "MEMBER",
-    },
-    {
-      email: "ops@essentia.local",
-      name: "Ops Admin",
-      role: "ADMIN",
-    },
-    {
       email: "souravkumar4297@gmail.com",
       name: "Sourav Kumar",
       role: "SUPERADMIN",
@@ -40,13 +25,29 @@ async function main() {
   for (const u of users) {
     await prisma.user.upsert({
       where: { email: u.email },
-      update: { name: u.name, role: u.role },
+      update: { name: u.name, role: u.role, blocked: false },
       create: u,
     });
   }
 
-  console.log("Seeded users only (no dummy leads):");
+  const removed = await prisma.user.deleteMany({
+    where: {
+      email: {
+        in: [
+          "admin@essentia.local",
+          "member@essentia.local",
+          "ops@essentia.local",
+          "bd@essentia.local",
+        ],
+      },
+    },
+  });
+
+  console.log("Seeded users:");
   for (const u of users) console.log(" ", u.role + ":", u.email);
+  if (removed.count) {
+    console.log(`Removed ${removed.count} legacy .local account(s).`);
+  }
 }
 
 main()

@@ -189,7 +189,7 @@ export default function ProposalsPage() {
       )}
 
       <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4 animate-rise">
-        <p className="heading text-[20px] font-semibold leading-none tracking-tight text-fg">
+        <p className="heading text-[20px] font-light leading-none tracking-tight text-fg">
           Project type
         </p>
         <div className="flex flex-wrap items-center gap-1 sm:justify-end">
@@ -683,7 +683,7 @@ function ProposalPreview({
   logoSrc: string;
 }) {
   return (
-    <article className="proposal-print border border-line bg-white text-[#111] shadow-sm">
+    <article className="proposal-print border border-line bg-white font-body font-light text-[#111] shadow-sm">
       {/* Cover */}
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
         <div className="mb-10 flex items-start justify-between gap-4">
@@ -805,7 +805,7 @@ function ProposalPreview({
             ["26", "YEARS OF PRACTICE"],
           ].map(([v, l]) => (
             <div key={l} className="border border-black/10 px-3 py-3">
-              <p className="text-sm font-medium text-black">{v}</p>
+              <p className="text-sm font-light text-black">{v}</p>
               <p className="mt-1 font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
                 {l}
               </p>
@@ -823,7 +823,7 @@ function ProposalPreview({
         <ul className="mt-6 space-y-5">
           {doc.concerns.map((c) => (
             <li key={c.id} className="border-t border-black/10 pt-4">
-              <p className="text-sm font-medium text-black">{c.title}</p>
+              <p className="text-sm font-light text-black">{c.title}</p>
               <p className="mt-2 text-sm leading-relaxed text-black/65">
                 {c.body}
               </p>
@@ -854,7 +854,7 @@ function ProposalPreview({
               {calc.lines.map((line) => (
                 <tr key={line.id} className="border-b border-black/10 align-top">
                   <td className="py-4 pr-3">
-                    <p className="font-medium text-black">{line.name}</p>
+                    <p className="font-light text-black">{line.name}</p>
                     <p className="mt-1 text-[12px] leading-relaxed text-black/55">
                       {line.description}
                     </p>
@@ -868,7 +868,7 @@ function ProposalPreview({
                   <td className="py-4 pr-3 whitespace-nowrap text-black/70">
                     ₹{line.privilegedRate}/sq.ft.
                   </td>
-                  <td className="py-4 text-right font-medium text-black">
+                  <td className="py-4 text-right font-light text-black">
                     {formatINR(line.investment)}
                   </td>
                 </tr>
@@ -882,7 +882,7 @@ function ProposalPreview({
             <p className="font-body text-[10px] uppercase tracking-[0.16em] text-black/50">
               ✦ {doc.privilegeBadge}
             </p>
-            <p className="mt-2 text-sm font-medium text-black">
+            <p className="mt-2 text-sm font-light text-black">
               {doc.privilegeTitle}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-black/65">
@@ -924,7 +924,7 @@ function ProposalPreview({
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           {doc.inclusions.map((inc) => (
             <div key={inc.id} className="border border-black/10 px-4 py-4">
-              <p className="text-sm font-medium text-black">✦ {inc.title}</p>
+              <p className="text-sm font-light text-black">✦ {inc.title}</p>
               <p className="mt-2 text-[12px] leading-relaxed text-black/60">
                 {inc.body}
               </p>
@@ -963,10 +963,10 @@ function ProposalPreview({
           <tbody>
             {calc.milestoneAmounts.map((m) => (
               <tr key={m.id} className="border-b border-black/10 align-top">
-                <td className="py-3 pr-2 font-medium">{m.percent}%</td>
+                <td className="py-3 pr-2 font-light">{m.percent}%</td>
                 <td className="py-3 pr-2">{m.label}</td>
                 <td className="py-3 pr-2 text-black/60">{m.trigger}</td>
-                <td className="py-3 text-right font-medium">
+                <td className="py-3 text-right font-light">
                   {formatINR(m.amount)}
                 </td>
               </tr>
@@ -986,7 +986,7 @@ function ProposalPreview({
         <ul className="mt-6 grid gap-4 sm:grid-cols-2">
           {doc.terms.map((t) => (
             <li key={t.id} className="border border-black/10 px-4 py-4">
-              <p className="text-sm font-medium text-black">◈ {t.title}</p>
+              <p className="text-sm font-light text-black">◈ {t.title}</p>
               <p className="mt-2 text-[12px] leading-relaxed text-black/60">
                 {t.body}
               </p>
@@ -1008,14 +1008,14 @@ function ProposalPreview({
             <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
               {doc.preparedByRole}
             </p>
-            <p className="mt-2 text-sm font-medium">{doc.preparedByName}</p>
+            <p className="mt-2 text-sm font-light">{doc.preparedByName}</p>
             <p className="mt-8 text-xs text-black/40">Signature & Date</p>
           </div>
           <div className="border-t border-black/20 pt-4">
             <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
               {doc.acceptedByRole}
             </p>
-            <p className="mt-2 text-sm font-medium">
+            <p className="mt-2 text-sm font-light">
               {doc.acceptedByName || doc.clientName}
             </p>
             <p className="mt-8 text-xs text-black/40">Signature, Date & Place</p>

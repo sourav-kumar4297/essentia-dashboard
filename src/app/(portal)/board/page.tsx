@@ -114,7 +114,7 @@ export default function BoardPage() {
                         className="block w-full px-4 py-4 text-left transition hover:bg-surface-hover"
                         disabled={busyId === l.id}
                       >
-                        <p className="font-body text-[13px] font-normal leading-snug text-fg">
+                        <p className="font-body text-[13px] font-light leading-snug text-fg">
                           {l.name}
                         </p>
                         <p className="metric mt-1.5 text-fg-dim">

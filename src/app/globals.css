@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Lato:wght@300;400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Lato:wght@300;400&display=swap");
 @import "tailwindcss";
 
 /* Light — cool stone canvas + deep navy accent (essentia) */
@@ -48,8 +48,9 @@
 }
 
 @theme {
+  --font-sans: "Lato", Helvetica, Arial, sans-serif;
   --font-body: "Lato", Helvetica, Arial, sans-serif;
-  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-display: "Lato", Helvetica, Arial, sans-serif;
   --color-bg: var(--bg);
   --color-bg-soft: var(--bg-soft);
   --color-surface: var(--surface);
@@ -84,6 +85,14 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-weight: inherit;
+}
+
 ::selection {
   background: color-mix(in srgb, var(--fg) 18%, transparent);
 }
@@ -96,21 +105,21 @@ select option {
 /* Typography only — color inherits so text utilities can override */
 .label {
   font-family: var(--font-body);
-  font-weight: 400;
+  font-weight: 300;
   font-size: 13px;
   line-height: 1.45;
 }
 
 .metric {
   font-family: var(--font-body);
-  font-weight: 400;
+  font-weight: 300;
   font-size: 12px;
   line-height: 1.35;
 }
 
 .heading {
-  font-family: var(--font-display), var(--font-body);
-  font-weight: 500;
+  font-family: var(--font-body);
+  font-weight: 300;
   letter-spacing: 0.01em;
 }
 
@@ -408,9 +417,13 @@ select option {
 }
 
 @media print {
-  body {
+  body,
+  .proposal-print,
+  #profile-preview {
     background: #fff !important;
     color: #000 !important;
+    font-family: "Lato", Helvetica, Arial, sans-serif !important;
+    font-weight: 300 !important;
   }
   .no-print {
     display: none !important;

@@ -76,7 +76,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center gap-2 px-4 py-2.5 font-body text-[11px] font-normal uppercase tracking-[0.14em] transition disabled:cursor-not-allowed disabled:opacity-35",
+        "inline-flex items-center justify-center gap-2 px-4 py-2.5 font-body text-[11px] font-light uppercase tracking-[0.14em] transition disabled:cursor-not-allowed disabled:opacity-35",
         variant === "primary" &&
           "bg-fg text-bg shadow-[var(--elev-sm)] hover:opacity-90 active:scale-[0.98]",
         variant === "secondary" &&

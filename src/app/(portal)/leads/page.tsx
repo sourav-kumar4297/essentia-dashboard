@@ -475,7 +475,7 @@ function LeadsInner() {
                 ].map((h) => (
                   <th
                     key={h || "actions"}
-                    className="label whitespace-nowrap px-3 py-3 font-normal uppercase tracking-[0.14em] text-fg-muted"
+                    className="label whitespace-nowrap px-3 py-3 font-light uppercase tracking-[0.14em] text-fg-muted"
                   >
                     {h}
                   </th>

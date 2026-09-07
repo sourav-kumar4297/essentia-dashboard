@@ -10,6 +10,7 @@ import {
   GitBranch,
   Radio,
   Calculator,
+  FileUser,
   LogOut,
   Menu,
   X,
@@ -70,6 +71,12 @@ const MAIN_NAV = [
         hint: "Design fee proposal",
         icon: Calculator,
       },
+      {
+        href: "/company-profile",
+        label: "Profile Generator",
+        hint: "Company profile draft",
+        icon: FileUser,
+      },
     ],
   },
 ] as const;
@@ -103,7 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { total: leadTotal } = useLeadTotal();
-  const { user, logout } = useAuth();
+  const { user, logout, exitImpersonation, isImpersonating } = useAuth();
   const { theme } = useTheme();
   const { pendingHref, startNav } = useNavProgress();
   const [collapsed, setCollapsed] = useState(false);
@@ -465,6 +472,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Settings className="h-3.5 w-3.5" strokeWidth={1.5} />
                   Settings
                 </Link>
+                {(user?.role === "SUPERADMIN" || user?.impersonator) && (
+                  <Link
+                    href="/settings"
+                    onClick={() => {
+                      startNav("/settings");
+                      setProfileMenuOpen(false);
+                      onNavigate?.();
+                    }}
+                    className="label flex items-center gap-2.5 px-3.5 py-2.5 text-fg transition hover:bg-surface-hover"
+                  >
+                    <UserRound className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    Check in as user
+                  </Link>
+                )}
+                {isImpersonating && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setProfileMenuOpen(false);
+                      const result = await exitImpersonation();
+                      if (result.ok) window.location.assign("/pipeline");
+                    }}
+                    className="label flex w-full items-center gap-2.5 px-3.5 py-2.5 text-fg transition hover:bg-surface-hover"
+                  >
+                    Exit check-in
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={async () => {
@@ -575,6 +609,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           collapsed ? "md:pl-[72px]" : "md:pl-[268px]",
         )}
       >
+        {isImpersonating && user?.impersonator && (
+          <div className="no-print flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-line bg-fg px-4 py-2 text-bg md:px-8">
+            <p className="label text-bg">
+              Checked in as{" "}
+              <span className="text-bg">{user.name}</span> ({user.role}) · Super
+              Admin: {user.impersonator.email}
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                const result = await exitImpersonation();
+                if (result.ok) window.location.assign("/pipeline");
+              }}
+              className="label border border-bg/40 px-3 py-1.5 text-bg transition hover:bg-bg hover:text-fg"
+            >
+              Exit to Super Admin
+            </button>
+          </div>
+        )}
         <header
           className="no-print sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-4 backdrop-blur-md md:px-8"
           style={{ background: "var(--header)" }}
@@ -608,7 +661,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/leads?new=1"
               onClick={() => startNav("/leads?new=1")}
-              className="hidden items-center gap-1.5 bg-fg px-3.5 py-1.5 font-body text-[11px] font-normal uppercase tracking-[0.14em] text-bg shadow-[var(--elev-sm)] transition hover:opacity-90 active:scale-[0.98] sm:inline-flex"
+              className="hidden items-center gap-1.5 bg-fg px-3.5 py-1.5 font-body text-[11px] font-light uppercase tracking-[0.14em] text-bg shadow-[var(--elev-sm)] transition hover:opacity-90 active:scale-[0.98] sm:inline-flex"
             >
               <Plus className="h-3.5 w-3.5" />
               New Lead

@@ -50,7 +50,7 @@ export default function ProfilePage() {
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <Panel className="animate-rise self-start">
           <div className="flex flex-col items-center py-4 text-center">
-            <span className="flex h-16 w-16 items-center justify-center border border-line-strong bg-surface-hover font-display text-[26px] text-fg">
+            <span className="flex h-16 w-16 items-center justify-center border border-line-strong bg-surface-hover font-body text-[26px] font-light text-fg">
               {(user?.name?.trim()[0] ?? profile.name.trim()[0] ?? "A").toUpperCase()}
             </span>
             <p className="heading mt-4 text-[20px]">

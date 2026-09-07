@@ -6,7 +6,7 @@ import { Moon, RefreshCw, Sun, UserRound } from "lucide-react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
-import { canManageUsers, canSyncHubspot, ROLE_LABELS } from "@/lib/rbac";
+import { canSyncHubspot, isSuperAdminSession, ROLE_LABELS } from "@/lib/rbac";
 import { clsx } from "clsx";
 
 export default function SettingsPage() {
@@ -211,13 +211,15 @@ export default function SettingsPage() {
           </Panel>
         )}
 
-        {user && canManageUsers(user.role) && <TeamRolesPanel />}
+        {(user?.role === "SUPERADMIN" ||
+          (user && isSuperAdminSession(user))) && <TeamRolesPanel />}
       </div>
     </div>
   );
 }
 
 function TeamRolesPanel() {
+  const { user, switchUser, isImpersonating } = useAuth();
   const [users, setUsers] = useState<
     {
       id: string;
@@ -228,6 +230,7 @@ function TeamRolesPanel() {
     }[]
   >([]);
   const [busyId, setBusyId] = useState("");
+  const [toast, setToast] = useState("");
 
   useEffect(() => {
     void fetch("/api/users", { credentials: "include" })
@@ -235,6 +238,12 @@ function TeamRolesPanel() {
       .then((d) => setUsers(d.users ?? []))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   async function patchUser(
     id: string,
@@ -266,59 +275,125 @@ function TeamRolesPanel() {
     setBusyId("");
   }
 
+  async function removeUser(id: string, email: string) {
+    const ok = window.confirm(
+      `Remove ${email}?\n\nTheir account is deleted. If they sign in again with the same email, they get a fresh profile.`,
+    );
+    if (!ok) return;
+    setBusyId(id);
+    const res = await fetch(`/api/users/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    setBusyId("");
+    if (!res.ok) {
+      setToast(data.error || "Could not remove user.");
+      return;
+    }
+    setUsers((list) => list.filter((u) => u.id !== id));
+    setToast("User removed. They can join again as a fresh profile.");
+  }
+
+  async function checkIn(id: string) {
+    setBusyId(id);
+    const result = await switchUser(id);
+    setBusyId("");
+    if (!result.ok) {
+      setToast(result.error || "Could not check in.");
+      return;
+    }
+    window.location.assign("/pipeline");
+  }
+
+  const canEditRoles = user?.role === "SUPERADMIN" && !isImpersonating;
+
   return (
     <Panel className="animate-rise delay-2 lg:col-span-2" title="Team access">
       <p className="label mb-4 text-fg-muted">
-        Super Admin only — change BD Admin / Member roles, or block a user so
-        they cannot sign in.
+        Super Admin — check in as any BD Admin / Member without OTP. Remove
+        deletes the account; if they sign in again, they start as a fresh
+        profile.
       </p>
+      {toast && (
+        <p
+          className={`label mb-3 border px-3 py-2 ${
+            toast.includes("removed") || toast.includes("fresh")
+              ? "border-line text-fg-muted"
+              : "border-error/40 text-error"
+          }`}
+        >
+          {toast}
+        </p>
+      )}
       <ul className="divide-y divide-line border border-line">
-        {users.map((u) => (
-          <li
-            key={u.id}
-            className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
-          >
-            <div className="min-w-0">
-              <p className="label text-fg">
-                {u.name}
-                {u.blocked ? (
-                  <span className="ml-2 text-error">Blocked</span>
-                ) : null}
-              </p>
-              <p className="metric text-fg-dim">{u.email}</p>
-            </div>
-            {u.role === "SUPERADMIN" ? (
-              <span className="label text-fg-muted">
-                {ROLE_LABELS.SUPERADMIN}
-              </span>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className="border border-line bg-transparent px-2 py-1.5 font-body text-[13px] text-fg outline-none"
-                  value={u.role}
-                  disabled={busyId === u.id}
-                  onChange={(e) =>
-                    void patchUser(u.id, {
-                      role: e.target.value as "ADMIN" | "MEMBER",
-                    })
-                  }
-                >
-                  <option value="ADMIN">{ROLE_LABELS.ADMIN}</option>
-                  <option value="MEMBER">{ROLE_LABELS.MEMBER}</option>
-                </select>
-                <Button
-                  variant={u.blocked ? "secondary" : "danger"}
-                  disabled={busyId === u.id}
-                  onClick={() =>
-                    void patchUser(u.id, { blocked: !u.blocked })
-                  }
-                >
-                  {u.blocked ? "Unblock" : "Block"}
-                </Button>
+        {users.map((u) => {
+          const viewingAs = user?.id === u.id;
+          return (
+            <li
+              key={u.id}
+              className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
+            >
+              <div className="min-w-0">
+                <p className="label text-fg">
+                  {u.name}
+                  {viewingAs ? (
+                    <span className="ml-2 text-fg-muted">(you)</span>
+                  ) : null}
+                </p>
+                <p className="metric text-fg-dim">{u.email}</p>
               </div>
-            )}
-          </li>
-        ))}
+              <div className="flex flex-wrap items-center gap-2">
+                {u.role === "SUPERADMIN" ? (
+                  <span className="label text-fg-muted">
+                    {ROLE_LABELS.SUPERADMIN}
+                  </span>
+                ) : (
+                  <>
+                    {canEditRoles ? (
+                      <>
+                        <select
+                          className="border border-line bg-transparent px-2 py-1.5 font-body text-[13px] font-light text-fg outline-none"
+                          value={u.role}
+                          disabled={busyId === u.id}
+                          onChange={(e) =>
+                            void patchUser(u.id, {
+                              role: e.target.value as "ADMIN" | "MEMBER",
+                            })
+                          }
+                        >
+                          <option value="ADMIN">{ROLE_LABELS.ADMIN}</option>
+                          <option value="MEMBER">{ROLE_LABELS.MEMBER}</option>
+                        </select>
+                        <Button
+                          variant="danger"
+                          disabled={busyId === u.id}
+                          onClick={() => void removeUser(u.id, u.email)}
+                        >
+                          Remove
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="label text-fg-muted">
+                        {ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] ??
+                          u.role}
+                      </span>
+                    )}
+                    {!u.blocked && !viewingAs && (
+                      <Button
+                        variant="secondary"
+                        disabled={busyId === u.id}
+                        onClick={() => void checkIn(u.id)}
+                      >
+                        Check in
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </Panel>
   );

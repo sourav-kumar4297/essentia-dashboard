@@ -132,7 +132,7 @@ export function NotificationsMenu() {
       >
         <Bell className="h-3.5 w-3.5" strokeWidth={1.5} />
         {total > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-fg px-1 font-body text-[9px] font-normal text-bg">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center bg-fg px-1 font-body text-[9px] font-light text-bg">
             {total > 99 ? "99+" : total}
           </span>
         )}

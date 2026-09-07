@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
-import { canAssignLeads, canManageUsers } from "@/lib/rbac";
+import { canAssignLeads, isSuperAdminSession } from "@/lib/rbac";
 
-/** List members/admins for assignment dropdown */
+/** List members/admins for assignment dropdown / Super Admin check-in */
 export async function GET() {
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!canAssignLeads(user.role) && !canManageUsers(user.role)) {
+  if (!canAssignLeads(user.role) && !isSuperAdminSession(user)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

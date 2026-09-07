@@ -142,7 +142,7 @@ function CompanyProfileInner() {
       />
 
       <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4 animate-rise">
-        <p className="heading text-[20px] font-semibold leading-none tracking-tight text-fg">
+        <p className="heading text-[20px] font-light leading-none tracking-tight text-fg">
           Project type
         </p>
         <div className="flex flex-wrap items-center gap-1 sm:justify-end">
@@ -254,7 +254,7 @@ function CompanyProfileInner() {
         <Panel className="overflow-hidden !p-0 animate-rise delay-1">
           <article
             key={previewKey}
-            className="bg-surface px-6 py-8 animate-rise md:px-14 md:py-14"
+            className="bg-surface px-6 py-8 font-body font-light animate-rise md:px-14 md:py-14"
             id="profile-preview"
           >
             <header className="mb-8 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-5 md:mb-10 md:pb-6">
@@ -286,11 +286,11 @@ function CompanyProfileInner() {
                 <p className="label tracking-[0.16em] text-fg-muted uppercase">
                   {voice.leadsWith}
                 </p>
-                <p className="label mt-4 text-[15px] leading-relaxed">
+                <p className="label mt-4 text-[15px] leading-relaxed text-fg">
                   {voice.opening}
                 </p>
                 {consultation?.summary && (
-                  <p className="label mt-4 border-l border-line-strong pl-4 italic text-fg-muted">
+                  <p className="label mt-4 border-l border-line-strong pl-4 text-fg-muted">
                     From our conversation: {consultation.summary}
                   </p>
                 )}
@@ -301,34 +301,34 @@ function CompanyProfileInner() {
                 )}
               </div>
               <aside className="border border-line-strong bg-surface-hover px-5 py-5 text-fg">
-                <p className="font-body text-[10px] font-light uppercase tracking-[0.2em] text-fg-muted">
+                <p className="label tracking-[0.2em] text-fg-muted uppercase">
                   Tone
                 </p>
-                <p className="mt-2 font-body text-[13px] font-light leading-relaxed">
+                <p className="label mt-2 leading-relaxed text-fg">
                   {voice.tone}
                 </p>
-                <p className="mt-5 font-body text-[10px] font-light uppercase tracking-[0.2em] text-fg-muted">
+                <p className="label mt-5 tracking-[0.2em] text-fg-muted uppercase">
                   What we do
                 </p>
-                <ul className="mt-2 space-y-1 font-body text-[13px] font-light">
+                <ul className="label mt-2 space-y-1 text-fg">
                   <li>01 / Design</li>
                   <li>02 / Build</li>
                   <li>03 / Furniture</li>
                 </ul>
-                <p className="mt-5 font-body text-[10px] font-light uppercase tracking-[0.2em] text-fg-muted">
+                <p className="label mt-5 tracking-[0.2em] text-fg-muted uppercase">
                   Lead
                 </p>
-                <p className="mt-2 font-body text-[13px] font-light">
+                <p className="label mt-2 text-fg">
                   {lead.businessUnit} · {lead.source} · {lead.territory}
                 </p>
               </aside>
             </div>
 
             <section className="mt-10">
-              <h3 className="heading text-[22px] md:text-2xl">
+              <h3 className="heading text-[22px] md:text-[24px]">
                 Design. Build. Furniture.
               </h3>
-              <p className="label mt-3 max-w-2xl text-fg-muted">
+              <p className="label mt-3 max-w-2xl leading-relaxed text-fg-muted">
                 Every project is conceived, executed, and crafted in-house —
                 ensuring continuity, refinement, and a signature sense of
                 timeless character. Founded in 1999, essentia environments

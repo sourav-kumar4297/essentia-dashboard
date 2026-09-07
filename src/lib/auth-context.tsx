@@ -18,7 +18,10 @@ interface AuthContextValue {
   refresh: () => Promise<void>;
   applyUser: (user: AuthUser) => void;
   logout: () => Promise<void>;
+  switchUser: (userId: string) => Promise<{ ok: boolean; error?: string }>;
+  exitImpersonation: () => Promise<{ ok: boolean; error?: string }>;
   isAdmin: boolean;
+  isImpersonating: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -60,6 +63,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const switchUser = useCallback(async (userId: string) => {
+    const res = await fetch("/api/auth/switch-user", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    const data = (await res.json()) as { error?: string; user?: AuthUser };
+    if (!res.ok || !data.user) {
+      return { ok: false, error: data.error || "Could not switch user." };
+    }
+    setUser(data.user);
+    return { ok: true };
+  }, []);
+
+  const exitImpersonation = useCallback(async () => {
+    const res = await fetch("/api/auth/switch-user", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ restore: true }),
+    });
+    const data = (await res.json()) as { error?: string; user?: AuthUser };
+    if (!res.ok || !data.user) {
+      return { ok: false, error: data.error || "Could not exit." };
+    }
+    setUser(data.user);
+    return { ok: true };
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -67,9 +100,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh,
       applyUser,
       logout,
+      switchUser,
+      exitImpersonation,
       isAdmin: user ? isFullAccess(user.role) : false,
+      isImpersonating: Boolean(user?.impersonator),
     }),
-    [user, loading, refresh, applyUser, logout],
+    [
+      user,
+      loading,
+      refresh,
+      applyUser,
+      logout,
+      switchUser,
+      exitImpersonation,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
