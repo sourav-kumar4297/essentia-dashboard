@@ -225,7 +225,7 @@ function LeadsInner() {
         description={
           isAdmin
             ? "Assign members, take back Hot/Warm leads, send the next team later."
-            : "Call your assigned leads, log what the client said, and return Hot/Warm ones to Admin."
+            : "Call your assigned leads, log what the client said, and return Hot/Warm ones to Team Leader."
         }
         actions={
           <Button
@@ -328,7 +328,7 @@ function LeadsInner() {
             options={[
               ["all", "All owners"],
               ["unassigned", "Unassigned"],
-              ["ready", "Ready for Admin"],
+              ["ready", "Ready for Team Leader"],
             ]}
           />
         )}
@@ -415,7 +415,7 @@ function LeadsInner() {
               disabled={bulkBusy}
               onClick={() => void runBulk({ returnToAdmin: true })}
             >
-              Return to Admin
+              Return to Team Leader
             </Button>
           )}
           <button
@@ -475,7 +475,7 @@ function LeadsInner() {
                 ].map((h) => (
                   <th
                     key={h || "actions"}
-                    className="label whitespace-nowrap px-3 py-3 font-light uppercase tracking-[0.14em] text-fg-muted"
+                    className="label whitespace-nowrap px-3 py-3 font-light lowercase tracking-[0.14em] text-fg-muted"
                   >
                     {h}
                   </th>
@@ -775,7 +775,7 @@ function PagerBtn({
 
 function StatusPill({ status }: { status: BdLeadStatus }) {
   return (
-    <span className="label inline-flex whitespace-nowrap border border-fg/25 bg-fg/[0.06] px-2 py-1 uppercase tracking-[0.08em] text-fg">
+    <span className="label inline-flex whitespace-nowrap border border-fg/25 bg-fg/[0.06] px-2 py-1 lowercase tracking-[0.08em] text-fg">
       {BD_STATUS_LABELS[status]}
     </span>
   );
@@ -1111,10 +1111,10 @@ function LeadDetailBody({
 
       {assignedToMe && (
         <div className="border border-line p-4">
-          <p className="label text-fg">Ready for Admin</p>
+          <p className="label text-fg">Ready for Team Leader</p>
           <p className="metric mt-1 text-fg-dim">
             When the lead is Hot or Warm and the client is good to go, send it
-            back so Admin can assign the next team.
+            back so Team Leader can assign the next team.
           </p>
           <Button
             className="mt-3 w-full"
@@ -1123,7 +1123,7 @@ function LeadDetailBody({
               patch({ returnToAdmin: true, qualification: qual })
             }
           >
-            Return to Admin
+            Return to Team Leader
           </Button>
         </div>
       )}

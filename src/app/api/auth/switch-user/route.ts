@@ -4,6 +4,7 @@ import { createSession, getSessionUser } from "@/lib/session";
 import {
   SESSION_COOKIE,
   SESSION_TTL_MS,
+  type AuthUser,
   type Role,
 } from "@/lib/bd-types";
 
@@ -15,6 +16,30 @@ function setSessionCookie(res: NextResponse, token: string) {
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
   });
+}
+
+function toUserPayload(
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    team: string;
+    phone: string;
+    profileSetupComplete: boolean;
+  },
+  impersonator?: AuthUser["impersonator"],
+): AuthUser {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role as Role,
+    team: user.team,
+    phone: user.phone ?? "",
+    profileSetupComplete: user.profileSetupComplete,
+    ...(impersonator ? { impersonator } : {}),
+  };
 }
 
 /**
@@ -55,12 +80,7 @@ export async function POST(req: Request) {
       });
       const res = NextResponse.json({
         ok: true,
-        user: {
-          id: actor.id,
-          email: actor.email,
-          name: actor.name,
-          role: actor.role as Role,
-        },
+        user: toUserPayload(actor),
       });
       setSessionCookie(res, token);
       return res;
@@ -94,12 +114,7 @@ export async function POST(req: Request) {
       });
       const res = NextResponse.json({
         ok: true,
-        user: {
-          id: actor.id,
-          email: actor.email,
-          name: actor.name,
-          role: actor.role as Role,
-        },
+        user: toUserPayload(actor),
       });
       setSessionCookie(res, token);
       return res;
@@ -129,17 +144,11 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json({
       ok: true,
-      user: {
-        id: target.id,
-        email: target.email,
-        name: target.name,
-        role: target.role as Role,
-        impersonator: {
-          id: actor.id,
-          email: actor.email,
-          name: actor.name,
-        },
-      },
+      user: toUserPayload(target, {
+        id: actor.id,
+        email: actor.email,
+        name: actor.name,
+      }),
     });
     setSessionCookie(res, token);
     return res;

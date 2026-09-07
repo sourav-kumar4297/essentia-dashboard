@@ -41,6 +41,9 @@ export async function POST(req: Request) {
         email: user.email,
         name: user.name,
         role: user.role,
+        team: user.team,
+        phone: user.phone,
+        profileSetupComplete: user.profileSetupComplete,
       },
     });
     res.cookies.set(SESSION_COOKIE, token, {
@@ -57,6 +60,12 @@ export async function POST(req: Request) {
     if (message === "ACCOUNT_BLOCKED") {
       return NextResponse.json(
         { error: "This account is blocked. Contact a Super Admin." },
+        { status: 403 },
+      );
+    }
+    if (message === "EMAIL_NOT_ALLOWED") {
+      return NextResponse.json(
+        { error: "This email is not authorised. Contact a Super Admin." },
         { status: 403 },
       );
     }

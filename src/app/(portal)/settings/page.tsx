@@ -6,7 +6,7 @@ import { Moon, RefreshCw, Sun, UserRound } from "lucide-react";
 import { Button, PageHeader, Panel } from "@/components/ui";
 import { useTheme } from "@/lib/theme";
 import { useAuth } from "@/lib/auth-context";
-import { canSyncHubspot, isSuperAdminSession, ROLE_LABELS } from "@/lib/rbac";
+import { canSyncHubspot, ROLE_LABELS } from "@/lib/rbac";
 import { clsx } from "clsx";
 
 export default function SettingsPage() {
@@ -161,9 +161,9 @@ export default function SettingsPage() {
           </p>
           <p className="label mt-1 text-fg-dim">
             {user?.role === "MEMBER"
-              ? "You see assigned leads. Call, log notes, set Hot/Warm/Cold, then return ready leads to Admin."
+              ? "You see assigned leads. Call, log notes, set Hot/Warm/Cold, then return ready leads to Team Leader."
               : user?.role === "ADMIN"
-                ? "Assign leads to members. When a member returns a Hot or Warm lead, you send it to the next team (coming next)."
+                ? "Assign leads to executives. When an executive returns a Hot or Warm lead, you send it to the next team (coming next)."
                 : "All flows — users, HubSpot, assign, and pipeline."}
           </p>
           <Link href="/profile" className="mt-4 inline-block">
@@ -211,8 +211,7 @@ export default function SettingsPage() {
           </Panel>
         )}
 
-        {(user?.role === "SUPERADMIN" ||
-          (user && isSuperAdminSession(user))) && <TeamRolesPanel />}
+        {user?.role === "SUPERADMIN" && <TeamRolesPanel />}
       </div>
     </div>
   );
@@ -311,7 +310,7 @@ function TeamRolesPanel() {
   return (
     <Panel className="animate-rise delay-2 lg:col-span-2" title="Team access">
       <p className="label mb-4 text-fg-muted">
-        Super Admin — check in as any BD Admin / Member without OTP. Remove
+        Super Admin — check in as any team leader / executive without OTP. Remove
         deletes the account; if they sign in again, they start as a fresh
         profile.
       </p>

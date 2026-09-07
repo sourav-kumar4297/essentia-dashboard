@@ -217,7 +217,7 @@ export function LeadFormPanel({
       <aside className="absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col border-l border-line bg-bg animate-slide-right">
         <header className="flex shrink-0 items-center justify-between border-b border-line px-6 py-5">
           <div>
-            <p className="label tracking-[0.18em] text-fg-muted uppercase">
+            <p className="label tracking-[0.18em] text-fg-muted lowercase">
               {editing ? "Edit Lead" : "New Lead"}
             </p>
             <h2 className="heading mt-1 text-[22px]">
@@ -367,7 +367,7 @@ export function LeadFormPanel({
                 >
                   {PROJECT_TYPES.map((p) => (
                     <option key={p} value={p}>
-                      {p[0].toUpperCase() + p.slice(1)}
+                      {p.toLowerCase()}
                     </option>
                   ))}
                 </select>
@@ -408,7 +408,7 @@ export function LeadFormPanel({
                     type="button"
                     onClick={() => set("qualification", value)}
                     className={clsx(
-                      "label border px-3 py-2.5 uppercase tracking-[0.14em] transition",
+                      "label border px-3 py-2.5 lowercase tracking-[0.14em] transition",
                       form.qualification === value
                         ? activeClass
                         : "border-line text-fg-muted hover:border-line-strong",

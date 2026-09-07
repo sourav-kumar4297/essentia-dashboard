@@ -73,7 +73,7 @@ export default function BoardPage() {
         description={
           isAdmin
             ? "BD journey — New through Won. Members work assigned cards only."
-            : "Your assigned leads. Log calls on All Leads, then return Hot/Warm to Admin."
+            : "Your assigned leads. Log calls on All Leads, then return Hot/Warm to Team Leader."
         }
       />
 
@@ -94,7 +94,7 @@ export default function BoardPage() {
               )}
             >
               <header className="flex items-baseline justify-between gap-2 border-b border-line px-4 py-3.5">
-                <h2 className="label tracking-[0.16em] text-fg uppercase">
+                <h2 className="label tracking-[0.16em] text-fg lowercase">
                   {col.title}
                 </h2>
                 <span className="metric text-fg-dim">{items.length}</span>

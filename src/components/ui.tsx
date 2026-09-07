@@ -18,7 +18,7 @@ export function PageHeader({
       <div className="min-w-0 max-w-2xl">
         {eyebrow && (
           <nav aria-label="Breadcrumb">
-            <p className="label tracking-[0.16em] text-fg-dim uppercase">
+            <p className="label tracking-[0.16em] text-fg-dim lowercase">
               {eyebrow}
               <span className="mx-2 text-fg-dim/70">/</span>
               <span className="text-fg-muted">{title}</span>
@@ -76,7 +76,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center gap-2 px-4 py-2.5 font-body text-[11px] font-light uppercase tracking-[0.14em] transition disabled:cursor-not-allowed disabled:opacity-35",
+        "inline-flex items-center justify-center gap-2 px-4 py-2.5 font-body text-[11px] font-light lowercase tracking-[0.14em] transition disabled:cursor-not-allowed disabled:opacity-35",
         variant === "primary" &&
           "bg-fg text-bg shadow-[var(--elev-sm)] hover:opacity-90 active:scale-[0.98]",
         variant === "secondary" &&
@@ -127,7 +127,7 @@ export function QualBadge({ q }: { q: Qualification }) {
   return (
     <span
       className={clsx(
-        "inline-flex border px-2.5 py-1 font-body text-[10px] font-light uppercase tracking-[0.14em]",
+        "inline-flex border px-2.5 py-1 font-body text-[10px] font-light lowercase tracking-[0.14em]",
         QUAL_STYLES[q],
       )}
     >

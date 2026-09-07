@@ -35,14 +35,14 @@ export function BrandLoader({
       />
 
       <p
-        className="mt-6 font-body text-[10px] font-light uppercase tracking-[0.4em] text-white/45"
+        className="mt-6 font-body text-[10px] font-light lowercase tracking-[0.4em] text-white/45"
         style={{ animation: "fade-up-soft 0.8s ease both 0.85s" }}
       >
         Design&nbsp;&nbsp;·&nbsp;&nbsp;Build&nbsp;&nbsp;·&nbsp;&nbsp;Furniture
       </p>
 
       <p
-        className="mt-8 font-body text-[10px] font-light uppercase tracking-[0.28em] text-white/50"
+        className="mt-8 font-body text-[10px] font-light lowercase tracking-[0.28em] text-white/50"
         style={{ animation: "fade-up-soft 0.8s ease both 1.1s" }}
       >
         {status}
@@ -56,7 +56,7 @@ export function BrandLoader({
       </span>
 
       <p
-        className="absolute bottom-8 font-body text-[10px] font-light uppercase tracking-[0.3em] text-white/25"
+        className="absolute bottom-8 font-body text-[10px] font-light lowercase tracking-[0.3em] text-white/25"
         style={{ animation: "fade-up-soft 0.8s ease both 1.1s" }}
       >
         Since 1999

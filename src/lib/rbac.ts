@@ -2,8 +2,8 @@ import type { AuthUser, BdLeadStatus, Role } from "@/lib/bd-types";
 
 export const ROLE_LABELS: Record<Role, string> = {
   SUPERADMIN: "Super Admin",
-  ADMIN: "BD Admin",
-  MEMBER: "BD Member",
+  ADMIN: "Team Leader",
+  MEMBER: "Executive",
 };
 
 export function isFullAccess(role: Role): boolean {

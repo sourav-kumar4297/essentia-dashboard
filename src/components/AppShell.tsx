@@ -29,6 +29,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLeadTotal } from "@/lib/use-bd-leads";
 import { useTheme } from "@/lib/theme";
 import { useNavProgress } from "@/components/RouteProgress";
+import { ROLE_LABELS } from "@/lib/rbac";
 
 const COLLAPSE_KEY = "essentia_sidebar_collapsed_v1";
 
@@ -122,8 +123,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const logoVariant = theme === "dark" ? "white" : "espresso";
   const displayName = user?.name ?? "User";
   const displayEmail = user?.email ?? "";
-  const initial = (displayName.trim()[0] ?? "A").toUpperCase();
-  const roleLabel = user?.role ?? "MEMBER";
+  const initial = (displayName.trim()[0] ?? "a").toLowerCase();
+  const roleLabel = user?.role ? ROLE_LABELS[user.role] : "—";
   const wide =
     pathname.startsWith("/leads") ||
     pathname.startsWith("/board") ||
@@ -219,7 +220,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             return (
             <div key={section.group || "main"}>
               {!compact && section.group && (
-                <p className="label mb-1.5 px-2.5 tracking-[0.18em] text-fg-dim uppercase">
+                <p className="label mb-1.5 px-2.5 tracking-[0.18em] text-fg-dim lowercase">
                   {section.group}
                 </p>
               )}
@@ -387,7 +388,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
 
           {!compact && (
-            <p className="label px-1 pb-1 tracking-[0.18em] text-fg-dim uppercase">
+            <p className="label px-1 pb-1 tracking-[0.18em] text-fg-dim lowercase">
               Account
             </p>
           )}
@@ -472,7 +473,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Settings className="h-3.5 w-3.5" strokeWidth={1.5} />
                   Settings
                 </Link>
-                {(user?.role === "SUPERADMIN" || user?.impersonator) && (
+                {user?.role === "SUPERADMIN" && (
                   <Link
                     href="/settings"
                     onClick={() => {
@@ -661,7 +662,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/leads?new=1"
               onClick={() => startNav("/leads?new=1")}
-              className="hidden items-center gap-1.5 bg-fg px-3.5 py-1.5 font-body text-[11px] font-light uppercase tracking-[0.14em] text-bg shadow-[var(--elev-sm)] transition hover:opacity-90 active:scale-[0.98] sm:inline-flex"
+              className="hidden items-center gap-1.5 bg-fg px-3.5 py-1.5 font-body text-[11px] font-light lowercase tracking-[0.14em] text-bg shadow-[var(--elev-sm)] transition hover:opacity-90 active:scale-[0.98] sm:inline-flex"
             >
               <Plus className="h-3.5 w-3.5" />
               New Lead

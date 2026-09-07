@@ -66,7 +66,7 @@ export function LeadDetailPanel({
       <aside className="absolute right-0 top-0 flex h-full w-full max-w-[480px] flex-col border-l border-line bg-bg animate-slide-right">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-6 py-5">
           <div className="min-w-0">
-            <p className="label tracking-[0.18em] text-fg-muted uppercase">
+            <p className="label tracking-[0.18em] text-fg-muted lowercase">
               Lead Detail
             </p>
             <h2 className="heading mt-1 truncate text-[22px]">{lead.name}</h2>

@@ -6,48 +6,65 @@ const prisma = new PrismaClient();
 async function main() {
   const users = [
     {
-      email: "admin@essentia.com",
-      name: "BD Admin",
+      email: "pkv@essentia.in",
+      name: "PKV",
       role: "ADMIN",
+      team: "business-development",
+      profileSetupComplete: false,
+    },
+    {
+      email: "lavanya@essentia.in",
+      name: "Lavanya",
+      role: "MEMBER",
+      team: "business-development",
+      profileSetupComplete: false,
+    },
+    {
+      email: "executive@essentia.in",
+      name: "Executive",
+      role: "MEMBER",
+      team: "business-development",
+      profileSetupComplete: false,
+    },
+    {
+      email: "admin@essentia.com",
+      name: "Team Leader",
+      role: "ADMIN",
+      team: "business-development",
+      profileSetupComplete: false,
     },
     {
       email: "member@essentia.com",
-      name: "BD Member",
+      name: "Executive",
       role: "MEMBER",
+      team: "business-development",
+      profileSetupComplete: false,
     },
     {
       email: "souravkumar4297@gmail.com",
       name: "Sourav Kumar",
       role: "SUPERADMIN",
+      team: "business-development",
+      profileSetupComplete: true,
     },
   ];
 
   for (const u of users) {
     await prisma.user.upsert({
       where: { email: u.email },
-      update: { name: u.name, role: u.role, blocked: false },
-      create: u,
+      update: {
+        name: u.name,
+        role: u.role,
+        blocked: false,
+        team: u.team,
+        profileSetupComplete: u.profileSetupComplete,
+      },
+      create: { ...u, phone: "" },
     });
   }
 
-  const removed = await prisma.user.deleteMany({
-    where: {
-      email: {
-        in: [
-          "admin@essentia.local",
-          "member@essentia.local",
-          "ops@essentia.local",
-          "bd@essentia.local",
-        ],
-      },
-    },
-  });
-
   console.log("Seeded users:");
   for (const u of users) console.log(" ", u.role + ":", u.email);
-  if (removed.count) {
-    console.log(`Removed ${removed.count} legacy .local account(s).`);
-  }
 }
 
 main()

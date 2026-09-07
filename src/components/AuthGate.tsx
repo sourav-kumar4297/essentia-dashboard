@@ -4,12 +4,14 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandLoader } from "@/components/BrandLoader";
 import { useAuth } from "@/lib/auth-context";
+import { needsProfileSetup } from "@/lib/session-client";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const isLogin = pathname === "/login";
+  const isOnboarding = pathname === "/onboarding";
 
   useEffect(() => {
     if (loading) return;
@@ -17,15 +19,46 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       return;
     }
-    if (user && isLogin) {
+    if (!user) return;
+
+    const needsSetup = needsProfileSetup(user);
+
+    if (needsSetup && !isOnboarding) {
+      router.replace("/onboarding");
+      return;
+    }
+    if (!needsSetup && (isLogin || isOnboarding)) {
+      router.replace("/pipeline");
+      return;
+    }
+    if (user && isLogin && !needsSetup) {
       router.replace("/pipeline");
     }
-  }, [user, loading, isLogin, router]);
+  }, [user, loading, isLogin, isOnboarding, router]);
 
-  // Login form should paint immediately — never trap people on a black splash
-  // while the session check is in flight.
   if (isLogin) {
     if (user) {
+      return (
+        <BrandLoader
+          status={
+            needsProfileSetup(user)
+              ? "Opening profile setup…"
+              : "Opening dashboard…"
+          }
+        />
+      );
+    }
+    return <>{children}</>;
+  }
+
+  if (isOnboarding) {
+    if (loading) {
+      return <BrandLoader status="Checking your session…" />;
+    }
+    if (!user) {
+      return <BrandLoader status="Redirecting to sign in…" />;
+    }
+    if (!needsProfileSetup(user)) {
       return <BrandLoader status="Opening dashboard…" />;
     }
     return <>{children}</>;
@@ -37,6 +70,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <BrandLoader status="Redirecting to sign in…" />;
+  }
+
+  if (needsProfileSetup(user)) {
+    return <BrandLoader status="Opening profile setup…" />;
   }
 
   return <>{children}</>;

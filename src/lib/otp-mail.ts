@@ -70,7 +70,7 @@ export async function sendOtpEmail(
       subject: "Welcome to Essentia dashboard",
       html: `
         <div style="font-family: Lato, Helvetica, Arial, sans-serif; max-width: 420px; margin: 0 auto; padding: 32px 24px; color: #111;">
-          <p style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #666; margin: 0 0 16px;">Essentia</p>
+          <p style="font-size: 12px; letter-spacing: 0.18em; text-transform: lowercase; color: #666; margin: 0 0 16px;">essentia</p>
           <h1 style="font-size: 22px; font-weight: 300; margin: 0 0 12px;">Welcome to Essentia dashboard</h1>
           <p style="font-size: 14px; color: #444; margin: 0 0 24px;">Your login OTP code is</p>
           <p style="font-size: 32px; letter-spacing: 0.35em; font-weight: 300; margin: 0 0 24px;">${code}</p>

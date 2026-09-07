@@ -75,6 +75,139 @@ function CountUp({ target, suffix }: { target: number; suffix: string }) {
   );
 }
 
+const OTP_LEN = 6;
+
+function OtpBoxes({
+  value,
+  onChange,
+  disabled,
+  invalid,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  invalid?: boolean;
+}) {
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const digits = Array.from({ length: OTP_LEN }, (_, i) => value[i] ?? "");
+
+  function setAt(index: number, digit: string) {
+    const next = Array.from({ length: OTP_LEN }, (_, i) =>
+      i === index ? digit : (value[i] ?? ""),
+    );
+    onChange(next.join("").replace(/\D/g, "").slice(0, OTP_LEN));
+  }
+
+  function focusAt(index: number) {
+    const el = refs.current[Math.max(0, Math.min(OTP_LEN - 1, index))];
+    el?.focus();
+    el?.select();
+  }
+
+  return (
+    <div
+      className="flex items-center justify-between gap-2 sm:gap-2.5"
+      role="group"
+      aria-label="one-time code"
+    >
+      {digits.map((digit, i) => {
+        const filled = Boolean(digit);
+        return (
+          <input
+            key={i}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete={i === 0 ? "one-time-code" : "off"}
+            maxLength={1}
+            value={digit}
+            disabled={disabled}
+            autoFocus={i === 0}
+            aria-label={`digit ${i + 1}`}
+            className={clsx(
+              "h-12 w-12 shrink-0 rounded-lg border-2 bg-surface-hover text-center font-body text-[22px] font-light text-fg outline-none transition sm:h-14 sm:w-14 sm:text-[24px]",
+              "caret-fg selection:bg-fg/15",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              "focus:border-fg focus:bg-surface focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--fg)_12%,transparent)]",
+              invalid
+                ? "border-error/55 bg-error/5"
+                : filled
+                  ? "border-fg/45 bg-surface"
+                  : "border-line-strong hover:border-fg/35",
+            )}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\D/g, "");
+              if (!raw) {
+                setAt(i, "");
+                return;
+              }
+              // Paste or multi-digit into one box: fill forward
+              if (raw.length > 1) {
+                const filledDigits = value.split("");
+                for (let j = 0; j < raw.length && i + j < OTP_LEN; j++) {
+                  filledDigits[i + j] = raw[j]!;
+                }
+                const joined = filledDigits
+                  .join("")
+                  .replace(/\D/g, "")
+                  .slice(0, OTP_LEN);
+                onChange(joined);
+                focusAt(Math.min(i + raw.length, OTP_LEN - 1));
+                return;
+              }
+              setAt(i, raw);
+              if (i < OTP_LEN - 1) focusAt(i + 1);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Backspace") {
+                e.preventDefault();
+                if (digits[i]) {
+                  setAt(i, "");
+                } else if (i > 0) {
+                  setAt(i - 1, "");
+                  focusAt(i - 1);
+                }
+                return;
+              }
+              if (e.key === "ArrowLeft" && i > 0) {
+                e.preventDefault();
+                focusAt(i - 1);
+              }
+              if (e.key === "ArrowRight" && i < OTP_LEN - 1) {
+                e.preventDefault();
+                focusAt(i + 1);
+              }
+              if (
+                e.key.length === 1 &&
+                !/[0-9]/.test(e.key) &&
+                !e.ctrlKey &&
+                !e.metaKey &&
+                !e.altKey
+              ) {
+                e.preventDefault();
+              }
+            }}
+            onPaste={(e) => {
+              e.preventDefault();
+              const pasted = e.clipboardData
+                .getData("text")
+                .replace(/\D/g, "")
+                .slice(0, OTP_LEN);
+              if (!pasted) return;
+              onChange(pasted);
+              focusAt(Math.min(pasted.length, OTP_LEN) - 1);
+            }}
+            onFocus={(e) => e.target.select()}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { applyUser } = useAuth();
@@ -90,6 +223,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [slide, setSlide] = useState(0);
+  const otpAutoTried = useRef("");
 
   useEffect(() => {
     const t = setInterval(
@@ -173,13 +307,15 @@ export default function LoginPage() {
     }
   }
 
-  async function verifyCode(e: FormEvent) {
-    e.preventDefault();
+  async function verifyCode(e?: FormEvent) {
+    e?.preventDefault();
     setError("");
-    if (!code.trim()) {
+    const otp = code.replace(/\D/g, "");
+    if (otp.length !== 6) {
       fail("Enter the 6-digit code.");
       return;
     }
+    otpAutoTried.current = otp;
     setLoading(true);
     setStatus("Signing in…");
     try {
@@ -187,7 +323,7 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: email.trim(), code: code.trim() }),
+        body: JSON.stringify({ email: email.trim(), code: otp }),
       });
       const data = (await res.json()) as { error?: string; user?: AuthUser };
       if (!res.ok || !data.user) {
@@ -206,6 +342,18 @@ export default function LoginPage() {
     }
   }
 
+  useEffect(() => {
+    if (step !== "code" || loading) return;
+    const otp = code.replace(/\D/g, "");
+    if (otp.length !== 6) {
+      otpAutoTried.current = "";
+      return;
+    }
+    if (otpAutoTried.current === otp) return;
+    void verifyCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-submit when OTP complete
+  }, [code, step, loading]);
+
   const active = HIGHLIGHTS[slide];
   const ActiveIcon = active.icon;
 
@@ -223,7 +371,7 @@ export default function LoginPage() {
               className="h-5 w-5 animate-spin text-fg"
               strokeWidth={1.5}
             />
-            <p className="label mt-4 tracking-[0.18em] text-fg uppercase">
+            <p className="label mt-4 tracking-[0.18em] text-fg lowercase">
               {status || "Signing in…"}
             </p>
             <p className="metric mt-2 text-center text-fg-muted">
@@ -247,7 +395,7 @@ export default function LoginPage() {
         />
         <div className="relative z-10">
           <Logo variant="white" height={22} />
-          <p className="label mt-3 tracking-[0.2em] uppercase text-white/50">
+          <p className="label mt-3 tracking-[0.2em] lowercase text-white/50">
             Design · Build · Furniture
           </p>
         </div>
@@ -293,7 +441,7 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-sm">
-          <p className="label tracking-[0.18em] text-fg-muted uppercase">
+          <p className="label tracking-[0.18em] text-fg-muted lowercase">
             essentia dashboard
           </p>
           <h1 className="heading mt-2 text-[30px]">{greeting()}</h1>
@@ -328,7 +476,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-light uppercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
+                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-light lowercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
               >
                 {loading ? (
                   <>
@@ -353,23 +501,15 @@ export default function LoginPage() {
               <p className="label text-fg-muted">
                 Code sent to <span className="text-fg">{email}</span>
               </p>
-              <Field label="One-time code">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  className={clsx(
-                    inputClass,
-                    "tracking-[0.35em]",
-                    error && "!border-error/60",
-                  )}
+              <div>
+                <p className="label mb-1.5 text-fg-muted">one-time code</p>
+                <OtpBoxes
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  autoFocus
+                  onChange={setCode}
                   disabled={loading}
+                  invalid={Boolean(error)}
                 />
-              </Field>
+              </div>
               {previewCode && (
                 <p className="label border border-line px-3 py-2 text-fg">
                   On-screen code (email not delivered): {previewCode}
@@ -386,7 +526,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-light uppercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
+                className="group inline-flex w-full items-center justify-center gap-2 bg-fg px-4 py-3 font-body text-[11px] font-light lowercase tracking-[0.14em] text-bg hover:opacity-90 disabled:opacity-60"
               >
                 {loading ? (
                   <>
@@ -406,6 +546,7 @@ export default function LoginPage() {
                 onClick={() => {
                   setStep("email");
                   setCode("");
+                  otpAutoTried.current = "";
                   setPreviewCode("");
                   setHint("");
                   setError("");

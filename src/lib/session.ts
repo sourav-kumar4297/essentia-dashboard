@@ -2,12 +2,63 @@ import { cookies } from "next/headers";
 import { randomInt } from "crypto";
 import { prisma } from "@/lib/db";
 import { signAuthJwt, verifyAuthJwt } from "@/lib/jwt";
+import { getPresetUser } from "@/lib/allowed-users";
 import {
   OTP_TTL_MS,
   SESSION_COOKIE,
   type AuthUser,
   type Role,
 } from "@/lib/bd-types";
+
+function toAuthUser(user: {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  team: string;
+  phone: string;
+  profileSetupComplete: boolean;
+}): AuthUser {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role as Role,
+    team: user.team ?? "",
+    phone: user.phone ?? "",
+    profileSetupComplete: Boolean(user.profileSetupComplete),
+  };
+}
+
+function resolveBuiltinRole(email: string): {
+  role: Role;
+  name: string;
+  team: string;
+  skipSetup: boolean;
+} | null {
+  const normalized = email.trim().toLowerCase();
+  const superEmails = (process.env.SUPERADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const defaultSupers = ["souravkumar4297@gmail.com"];
+  if (new Set([...defaultSupers, ...superEmails]).has(normalized)) {
+    return {
+      role: "SUPERADMIN",
+      name: normalized.split("@")[0] || "Super Admin",
+      team: "business-development",
+      skipSetup: true,
+    };
+  }
+  const preset = getPresetUser(normalized);
+  if (!preset) return null;
+  return {
+    role: preset.role,
+    name: preset.name,
+    team: preset.team || "business-development",
+    skipSetup: false,
+  };
+}
 
 export function generateOtpCode(): string {
   return String(randomInt(100000, 999999));
@@ -55,29 +106,12 @@ export async function verifyOtp(
 export async function ensureUser(
   email: string,
   name?: string,
-): Promise<{ id: string; email: string; name: string; role: Role }> {
+): Promise<AuthUser> {
   const normalized = email.trim().toLowerCase();
-  const superEmails = (process.env.SUPERADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  const defaultSupers = ["souravkumar4297@gmail.com"];
-  const isSuper = new Set([...defaultSupers, ...superEmails]).has(normalized);
-  const adminEmails = (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  const defaultAdmins = ["admin@essentia.com"];
-  const defaultMembers = ["member@essentia.com"];
-  const isBdAdmin =
-    !isSuper &&
-    (adminEmails.includes(normalized) || defaultAdmins.includes(normalized));
-  const isBdMember = !isSuper && !isBdAdmin && defaultMembers.includes(normalized);
-  const role: Role = isSuper
-    ? "SUPERADMIN"
-    : isBdAdmin
-      ? "ADMIN"
-      : "MEMBER";
+  const builtin = resolveBuiltinRole(normalized);
+  if (!builtin) {
+    throw new Error("EMAIL_NOT_ALLOWED");
+  }
 
   const existing = await prisma.user.findUnique({
     where: { email: normalized },
@@ -86,62 +120,38 @@ export async function ensureUser(
     if (existing.blocked) {
       throw new Error("ACCOUNT_BLOCKED");
     }
-    if (isSuper && existing.role !== "SUPERADMIN") {
+    const data: {
+      role?: Role;
+      team?: string;
+      profileSetupComplete?: boolean;
+      name?: string;
+    } = {};
+    if (existing.role !== builtin.role) data.role = builtin.role;
+    if (!existing.team && builtin.team) data.team = builtin.team;
+    if (builtin.skipSetup && !existing.profileSetupComplete) {
+      data.profileSetupComplete = true;
+    }
+    if (Object.keys(data).length) {
       const updated = await prisma.user.update({
         where: { id: existing.id },
-        data: { role: "SUPERADMIN" },
+        data,
       });
-      return {
-        id: updated.id,
-        email: updated.email,
-        name: updated.name,
-        role: updated.role as Role,
-      };
+      return toAuthUser(updated);
     }
-    if (isBdAdmin && existing.role !== "ADMIN") {
-      const updated = await prisma.user.update({
-        where: { id: existing.id },
-        data: { role: "ADMIN" },
-      });
-      return {
-        id: updated.id,
-        email: updated.email,
-        name: updated.name,
-        role: updated.role as Role,
-      };
-    }
-    if (isBdMember && existing.role !== "MEMBER") {
-      const updated = await prisma.user.update({
-        where: { id: existing.id },
-        data: { role: "MEMBER" },
-      });
-      return {
-        id: updated.id,
-        email: updated.email,
-        name: updated.name,
-        role: updated.role as Role,
-      };
-    }
-    return {
-      id: existing.id,
-      email: existing.email,
-      name: existing.name,
-      role: existing.role as Role,
-    };
+    return toAuthUser(existing);
   }
+
   const created = await prisma.user.create({
     data: {
       email: normalized,
-      name: name?.trim() || normalized.split("@")[0],
-      role,
+      name: name?.trim() || builtin.name,
+      role: builtin.role,
+      team: builtin.team,
+      phone: "",
+      profileSetupComplete: builtin.skipSetup,
     },
   });
-  return {
-    id: created.id,
-    email: created.email,
-    name: created.name,
-    role: created.role as Role,
-  };
+  return toAuthUser(created);
 }
 
 export async function createSession(
@@ -169,12 +179,7 @@ export async function getSessionUser(): Promise<AuthUser | null> {
   const user = await prisma.user.findUnique({ where: { id: claims.sub } });
   if (!user || user.blocked) return null;
 
-  const auth: AuthUser = {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role as Role,
-  };
+  const auth = toAuthUser(user);
 
   if (claims.actorId) {
     const actor = await prisma.user.findUnique({
@@ -201,4 +206,11 @@ export async function requireUser(): Promise<AuthUser> {
   const user = await getSessionUser();
   if (!user) throw new Error("UNAUTHORIZED");
   return user;
+}
+
+/** Needs first-time name + phone setup. */
+export function needsProfileSetup(user: AuthUser): boolean {
+  if (user.role === "SUPERADMIN") return false;
+  if (user.impersonator) return false;
+  return !user.profileSetupComplete;
 }

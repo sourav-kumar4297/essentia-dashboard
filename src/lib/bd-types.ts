@@ -46,6 +46,9 @@ export interface AuthUser {
   email: string;
   name: string;
   role: Role;
+  team: string;
+  phone: string;
+  profileSetupComplete: boolean;
   /** Set when a Super Admin is checked in as this user */
   impersonator?: {
     id: string;

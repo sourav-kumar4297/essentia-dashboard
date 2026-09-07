@@ -8,8 +8,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-
-const PROFILE_KEY = "essentia_profile_v1";
+import { useAuth } from "@/lib/auth-context";
+import { ROLE_LABELS } from "@/lib/rbac";
 
 export interface UserProfile {
   name: string;
@@ -18,13 +18,6 @@ export interface UserProfile {
   title: string;
 }
 
-const DEFAULT_PROFILE: UserProfile = {
-  name: "Admin",
-  email: "admin@essentia.com",
-  phone: "",
-  title: "Administrator",
-};
-
 interface ProfileContextValue {
   profile: UserProfile;
   updateProfile: (patch: Partial<UserProfile>) => void;
@@ -32,24 +25,29 @@ interface ProfileContextValue {
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
+const EMPTY: UserProfile = {
+  name: "",
+  email: "",
+  phone: "",
+  title: "",
+};
+
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-  const [hydrated, setHydrated] = useState(false);
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<UserProfile>(EMPTY);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PROFILE_KEY);
-      if (raw) setProfile({ ...DEFAULT_PROFILE, ...JSON.parse(raw) });
-    } catch {
-      /* ignore */
+    if (!user) {
+      setProfile(EMPTY);
+      return;
     }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  }, [profile, hydrated]);
+    setProfile({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      title: ROLE_LABELS[user.role] || "",
+    });
+  }, [user]);
 
   const updateProfile = useCallback((patch: Partial<UserProfile>) => {
     setProfile((p) => ({ ...p, ...patch }));

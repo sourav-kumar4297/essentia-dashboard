@@ -688,11 +688,11 @@ function ProposalPreview({
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
         <div className="mb-10 flex items-start justify-between gap-4">
           <Image src={logoSrc} alt="essentia" width={140} height={34} />
-          <p className="text-right font-body text-[10px] uppercase tracking-[0.18em] text-black/45">
+          <p className="text-right font-body text-[10px] lowercase tracking-[0.18em] text-black/45">
             {doc.confidentialLabel} · {doc.dateLabel}
           </p>
         </div>
-        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/50">
+        <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/50">
           {doc.eyebrow}
         </p>
         <h1 className="mt-4 font-body text-[34px] font-light leading-[1.15] md:text-[42px]">
@@ -731,7 +731,7 @@ function ProposalPreview({
             ["REFERRED BY", doc.referredBy || "—"],
           ].map(([k, v]) => (
             <div key={k} className="border-t border-black/10 pt-3">
-              <dt className="font-body text-[10px] uppercase tracking-[0.16em] text-black/45">
+              <dt className="font-body text-[10px] lowercase tracking-[0.16em] text-black/45">
                 {k}
               </dt>
               <dd className="mt-1 whitespace-pre-line text-sm text-black/85">
@@ -746,7 +746,7 @@ function ProposalPreview({
       {/* Selected work images */}
       {doc.images?.length > 0 && (
         <section className="border-b border-black/10 px-8 py-10 md:px-12">
-          <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+          <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/45">
             Selected work
           </p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -769,7 +769,7 @@ function ProposalPreview({
 
       {/* Note */}
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
-        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+        <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/45">
           {doc.noteHeading}
         </p>
         <p className="mt-4 text-lg font-light leading-snug text-black">
@@ -779,7 +779,7 @@ function ProposalPreview({
           {doc.noteBody}
         </p>
         <blockquote className="mt-8 border-l-2 border-black/30 pl-4">
-          <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+          <p className="font-body text-[10px] lowercase tracking-[0.14em] text-black/45">
             {doc.quoteAttribution}
           </p>
           <p className="mt-2 text-sm italic leading-relaxed text-black/80">
@@ -790,7 +790,7 @@ function ProposalPreview({
 
       {/* Project */}
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
-        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+        <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/45">
           {doc.projectHeading}
         </p>
         <p className="mt-2 text-base text-black/80">{doc.projectSub}</p>
@@ -806,7 +806,7 @@ function ProposalPreview({
           ].map(([v, l]) => (
             <div key={l} className="border border-black/10 px-3 py-3">
               <p className="text-sm font-light text-black">{v}</p>
-              <p className="mt-1 font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+              <p className="mt-1 font-body text-[10px] lowercase tracking-[0.14em] text-black/45">
                 {l}
               </p>
             </div>
@@ -816,7 +816,7 @@ function ProposalPreview({
 
       {/* Concerns */}
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
-        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+        <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/45">
           {doc.concernsHeading}
         </p>
         <p className="mt-2 text-base text-black/80">{doc.concernsSub}</p>
@@ -834,7 +834,7 @@ function ProposalPreview({
 
       {/* Investment */}
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
-        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+        <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/45">
           {doc.investmentHeading}
         </p>
         <p className="mt-2 text-base text-black/80">{doc.investmentSub}</p>
@@ -842,7 +842,7 @@ function ProposalPreview({
         <div className="mt-6 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
-              <tr className="border-b border-black/15 font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+              <tr className="border-b border-black/15 font-body text-[10px] lowercase tracking-[0.14em] text-black/45">
                 <th className="py-2 pr-3">Service</th>
                 <th className="py-2 pr-3">Area</th>
                 <th className="py-2 pr-3">Standard</th>
@@ -879,7 +879,7 @@ function ProposalPreview({
 
         {doc.usePrivileged && (
           <div className="mt-6 border border-black/15 bg-[#f7f7f5] px-5 py-5">
-            <p className="font-body text-[10px] uppercase tracking-[0.16em] text-black/50">
+            <p className="font-body text-[10px] lowercase tracking-[0.16em] text-black/50">
               ✦ {doc.privilegeBadge}
             </p>
             <p className="mt-2 text-sm font-light text-black">
@@ -893,7 +893,7 @@ function ProposalPreview({
 
         <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
           <div>
-            <p className="font-body text-[10px] uppercase tracking-[0.16em] text-black/45">
+            <p className="font-body text-[10px] lowercase tracking-[0.16em] text-black/45">
               {doc.usePrivileged
                 ? "YOUR PRIVILEGED INVESTMENT"
                 : "YOUR DESIGN INVESTMENT"}
@@ -909,7 +909,7 @@ function ProposalPreview({
             )}
           </div>
           <div className="text-right">
-            <p className="font-body text-[10px] uppercase tracking-[0.16em] text-black/45">
+            <p className="font-body text-[10px] lowercase tracking-[0.16em] text-black/45">
               STANDARD DESIGN FEE
             </p>
             <p className="mt-1 text-xl text-black/70">
@@ -933,7 +933,7 @@ function ProposalPreview({
         </div>
 
         <div className="mt-6 border border-black/10 px-4 py-4">
-          <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+          <p className="font-body text-[10px] lowercase tracking-[0.14em] text-black/45">
             A note on 3D renders
           </p>
           <p className="mt-2 text-sm leading-relaxed text-black/65">
@@ -945,7 +945,7 @@ function ProposalPreview({
 
       {/* Payments */}
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
-        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+        <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/45">
           {doc.paymentHeading}
         </p>
         <p className="mt-3 text-sm leading-relaxed text-black/65">
@@ -953,7 +953,7 @@ function ProposalPreview({
         </p>
         <table className="mt-6 w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-black/15 font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+            <tr className="border-b border-black/15 font-body text-[10px] lowercase tracking-[0.14em] text-black/45">
               <th className="py-2">%</th>
               <th className="py-2">Milestone</th>
               <th className="py-2">Trigger</th>
@@ -980,7 +980,7 @@ function ProposalPreview({
 
       {/* Terms */}
       <section className="border-b border-black/10 px-8 py-10 md:px-12">
-        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+        <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/45">
           {doc.termsHeading}
         </p>
         <ul className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -997,7 +997,7 @@ function ProposalPreview({
 
       {/* Close */}
       <section className="px-8 py-10 md:px-12">
-        <p className="font-body text-[11px] uppercase tracking-[0.16em] text-black/45">
+        <p className="font-body text-[11px] lowercase tracking-[0.16em] text-black/45">
           {doc.nextHeading}
         </p>
         <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-black/70">
@@ -1005,14 +1005,14 @@ function ProposalPreview({
         </p>
         <div className="mt-10 grid gap-8 sm:grid-cols-2">
           <div className="border-t border-black/20 pt-4">
-            <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+            <p className="font-body text-[10px] lowercase tracking-[0.14em] text-black/45">
               {doc.preparedByRole}
             </p>
             <p className="mt-2 text-sm font-light">{doc.preparedByName}</p>
             <p className="mt-8 text-xs text-black/40">Signature & Date</p>
           </div>
           <div className="border-t border-black/20 pt-4">
-            <p className="font-body text-[10px] uppercase tracking-[0.14em] text-black/45">
+            <p className="font-body text-[10px] lowercase tracking-[0.14em] text-black/45">
               {doc.acceptedByRole}
             </p>
             <p className="mt-2 text-sm font-light">
@@ -1026,7 +1026,7 @@ function ProposalPreview({
             <Image src={logoSrc} alt="essentia" width={110} height={26} />
             <p className="mt-2 text-xs text-black/45">{doc.partnerLine}</p>
           </div>
-          <p className="font-body text-[11px] uppercase tracking-[0.14em] text-black/55">
+          <p className="font-body text-[11px] lowercase tracking-[0.14em] text-black/55">
             {doc.footerTagline}
           </p>
         </footer>

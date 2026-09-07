@@ -217,7 +217,7 @@ export function NotificationsMenu() {
                         (picks[lead.id] ?? "") === (lead.assignedToId || "")
                       }
                       onClick={() => void assignLead(lead.id)}
-                      className="shrink-0 bg-fg px-2 py-1 font-body text-[10px] uppercase tracking-[0.12em] text-bg enabled:hover:opacity-90 disabled:opacity-40"
+                      className="shrink-0 bg-fg px-2 py-1 font-body text-[10px] lowercase tracking-[0.12em] text-bg enabled:hover:opacity-90 disabled:opacity-40"
                     >
                       {busyId === lead.id ? "…" : "Assign"}
                     </button>

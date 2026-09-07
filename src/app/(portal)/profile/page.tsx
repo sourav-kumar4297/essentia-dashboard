@@ -4,19 +4,24 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Button, Field, PageHeader, Panel, inputClass } from "@/components/ui";
-import { useProfile } from "@/lib/profile";
 import { useAuth } from "@/lib/auth-context";
+import { teamLabel } from "@/lib/teams";
+import { ROLE_LABELS } from "@/lib/rbac";
+import { isValidPhone, PHONE_FORMAT_HINT, withIndiaPhonePrefix } from "@/lib/phone";
+import type { AuthUser } from "@/lib/bd-types";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { profile, updateProfile } = useProfile();
-  const { user, logout } = useAuth();
-  const [form, setForm] = useState(profile);
+  const { user, logout, applyUser } = useAuth();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState(() => withIndiaPhonePrefix(""));
   const [toast, setToast] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setForm(profile);
-  }, [profile]);
+    setName(user?.name ?? "");
+    setPhone(withIndiaPhonePrefix(user?.phone ?? ""));
+  }, [user]);
 
   useEffect(() => {
     if (!toast) return;
@@ -24,19 +29,36 @@ export default function ProfilePage() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) {
+    if (!name.trim()) {
       setToast("Display name is required.");
       return;
     }
-    updateProfile({
-      name: form.name.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim(),
-      title: form.title.trim(),
-    });
-    setToast("Profile saved.");
+    if (phone.trim() && !isValidPhone(phone)) {
+      setToast(PHONE_FORMAT_HINT);
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+      });
+      const data = (await res.json()) as { error?: string; user?: AuthUser };
+      if (!res.ok || !data.user) {
+        setToast(data.error || "Could not save.");
+        setSaving(false);
+        return;
+      }
+      applyUser(data.user);
+      setToast("Profile saved.");
+    } catch {
+      setToast("Network error.");
+    }
+    setSaving(false);
   };
 
   return (
@@ -51,12 +73,15 @@ export default function ProfilePage() {
         <Panel className="animate-rise self-start">
           <div className="flex flex-col items-center py-4 text-center">
             <span className="flex h-16 w-16 items-center justify-center border border-line-strong bg-surface-hover font-body text-[26px] font-light text-fg">
-              {(user?.name?.trim()[0] ?? profile.name.trim()[0] ?? "A").toUpperCase()}
+              {(user?.name?.trim()[0] ?? "a").toLowerCase()}
             </span>
-            <p className="heading mt-4 text-[20px]">
-              {user?.name ?? profile.name}
+            <p className="heading mt-4 text-[20px]">{user?.name ?? "—"}</p>
+            <p className="label mt-1 text-fg-muted">
+              {user?.role ? ROLE_LABELS[user.role] : "—"}
             </p>
-            <p className="label mt-1 text-fg-muted">{user?.role ?? "—"}</p>
+            {user?.team ? (
+              <p className="label mt-1 text-fg-dim">{teamLabel(user.team)}</p>
+            ) : null}
             <p className="metric mt-3 text-fg-dim">
               {user?.email ?? "Signed out"}
             </p>
@@ -75,22 +100,23 @@ export default function ProfilePage() {
         </Panel>
 
         <Panel className="animate-rise delay-1" title="Edit profile">
-          <form onSubmit={save} className="space-y-5">
+          <form onSubmit={(e) => void save(e)} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Display name">
                 <input
                   className={inputClass}
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
                 />
               </Field>
-              <Field label="Role / title">
+              <Field label="Phone">
                 <input
                   className={inputClass}
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="e.g. Growth Advisor"
+                  value={phone}
+                  onChange={(e) => setPhone(withIndiaPhonePrefix(e.target.value))}
+                  placeholder="+91 9876543210"
+                  inputMode="tel"
                 />
               </Field>
             </div>
@@ -98,18 +124,18 @@ export default function ProfilePage() {
               <Field label="Email">
                 <input
                   type="email"
-                  className={inputClass}
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="name@essentia.com"
+                  className={`${inputClass} opacity-70`}
+                  value={user?.email ?? ""}
+                  readOnly
+                  disabled
                 />
               </Field>
-              <Field label="Phone">
+              <Field label="Role">
                 <input
-                  className={inputClass}
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="+91 …"
+                  className={`${inputClass} opacity-70`}
+                  value={user?.role ? ROLE_LABELS[user.role] : ""}
+                  readOnly
+                  disabled
                 />
               </Field>
             </div>
@@ -121,7 +147,9 @@ export default function ProfilePage() {
             )}
 
             <div className="border-t border-line pt-5">
-              <Button type="submit">Save changes</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
             </div>
           </form>
         </Panel>

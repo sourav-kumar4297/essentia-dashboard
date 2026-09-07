@@ -225,7 +225,7 @@ function CompanyProfileInner() {
         {status && (
           <span
             className={clsx(
-              "label ml-auto border px-2.5 py-1.5 uppercase tracking-[0.14em]",
+              "label ml-auto border px-2.5 py-1.5 lowercase tracking-[0.14em]",
               status === "sent"
                 ? "border-ok/40 text-ok"
                 : "border-line text-fg-muted",
@@ -265,7 +265,7 @@ function CompanyProfileInner() {
                 height={38}
                 className="object-contain"
               />
-              <p className="label tracking-[0.18em] text-fg-muted uppercase">
+              <p className="label tracking-[0.18em] text-fg-muted lowercase">
                 Company Profile · {projectType}
               </p>
             </header>
@@ -283,7 +283,7 @@ function CompanyProfileInner() {
 
             <div className="mt-8 grid gap-6 md:grid-cols-[1fr_0.7fr]">
               <div>
-                <p className="label tracking-[0.16em] text-fg-muted uppercase">
+                <p className="label tracking-[0.16em] text-fg-muted lowercase">
                   {voice.leadsWith}
                 </p>
                 <p className="label mt-4 text-[15px] leading-relaxed text-fg">
@@ -301,13 +301,13 @@ function CompanyProfileInner() {
                 )}
               </div>
               <aside className="border border-line-strong bg-surface-hover px-5 py-5 text-fg">
-                <p className="label tracking-[0.2em] text-fg-muted uppercase">
+                <p className="label tracking-[0.2em] text-fg-muted lowercase">
                   Tone
                 </p>
                 <p className="label mt-2 leading-relaxed text-fg">
                   {voice.tone}
                 </p>
-                <p className="label mt-5 tracking-[0.2em] text-fg-muted uppercase">
+                <p className="label mt-5 tracking-[0.2em] text-fg-muted lowercase">
                   What we do
                 </p>
                 <ul className="label mt-2 space-y-1 text-fg">
@@ -315,7 +315,7 @@ function CompanyProfileInner() {
                   <li>02 / Build</li>
                   <li>03 / Furniture</li>
                 </ul>
-                <p className="label mt-5 tracking-[0.2em] text-fg-muted uppercase">
+                <p className="label mt-5 tracking-[0.2em] text-fg-muted lowercase">
                   Lead
                 </p>
                 <p className="label mt-2 text-fg">

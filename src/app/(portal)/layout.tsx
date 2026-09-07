@@ -9,6 +9,6 @@ export default function PortalLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  if (pathname === "/login") return <>{children}</>;
+  if (pathname === "/login" || pathname === "/onboarding") return <>{children}</>;
   return <AppShell>{children}</AppShell>;
 }

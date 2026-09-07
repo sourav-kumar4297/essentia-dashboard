@@ -11,8 +11,13 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
+  phone     String   @default("")
   /// SUPERADMIN | ADMIN | MEMBER
   role      String   @default("MEMBER")
+  /// BD team (assigned with login preset / Super Admin)
+  team      String   @default("")
+  /// False until first-time name + phone setup is completed
+  profileSetupComplete Boolean @default(false)
   /// When true, user cannot sign in or use the portal
   blocked   Boolean  @default(false)
   createdAt DateTime @default(now())

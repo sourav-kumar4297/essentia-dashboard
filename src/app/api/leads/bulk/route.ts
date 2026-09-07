@@ -58,7 +58,7 @@ export async function PATCH(req: Request) {
       const target = await prisma.user.findUnique({ where: { id: assignTo } });
       if (!target || target.role !== "MEMBER") {
         return NextResponse.json(
-          { error: "Leads can only be assigned to BD Members." },
+          { error: "Leads can only be assigned to executives." },
           { status: 400 },
         );
       }
