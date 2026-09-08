@@ -29,6 +29,11 @@ export const ALLOWED_LOGIN_USERS: Record<
     name: "Executive",
     team: "business-development",
   },
+  "crm.ruby@essentia.in": {
+    role: "MEMBER",
+    name: "Ruby",
+    team: "business-development",
+  },
 };
 
 /** Test accounts (no OTP when ALLOW_TEST_LOGIN is enabled). */

@@ -34,6 +34,13 @@ async function main() {
       profileSetupComplete: false,
     },
     {
+      email: "crm.ruby@essentia.in",
+      name: "Ruby",
+      role: "MEMBER",
+      team: "business-development",
+      profileSetupComplete: false,
+    },
+    {
       email: "admin@essentia.com",
       name: "Team Leader",
       role: "ADMIN",
