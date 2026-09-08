@@ -5,15 +5,23 @@ export function phoneDigits(value: string): string {
   return value.replace(/[\s\-().]/g, "").replace(/^\+/, "");
 }
 
-/** Keep +91 prefix filled; user types the 10-digit mobile. */
+/**
+ * Keep +91 prefix filled; user types the 10-digit mobile.
+ * Strips country code only when the field already has +91 or pasted length > 10
+ * so editing does not swallow digits into a broken "+91 91…" value.
+ */
 export function withIndiaPhonePrefix(value: string): string {
+  const compact = value.replace(/[\s\-().]/g, "");
+  const hasCountryCode = compact.startsWith("+91") || compact.startsWith("91");
   let digits = value.replace(/\D/g, "");
-  if (digits.startsWith("91") && digits.length > 10) {
+
+  if (digits.startsWith("91") && (hasCountryCode || digits.length > 10)) {
     digits = digits.slice(2);
   }
   if (digits.startsWith("0") && digits.length === 11) {
     digits = digits.slice(1);
   }
+
   return INDIA_PHONE_PREFIX + digits.slice(0, 10);
 }
 

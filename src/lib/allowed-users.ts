@@ -30,7 +30,7 @@ export const ALLOWED_LOGIN_USERS: Record<
     team: "business-development",
   },
   "crm.ruby@essentia.in": {
-    role: "MEMBER",
+    role: "ADMIN",
     name: "Ruby",
     team: "business-development",
   },

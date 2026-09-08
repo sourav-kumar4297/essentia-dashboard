@@ -36,7 +36,7 @@ async function main() {
     {
       email: "crm.ruby@essentia.in",
       name: "Ruby",
-      role: "MEMBER",
+      role: "ADMIN",
       team: "business-development",
       profileSetupComplete: false,
     },
@@ -71,7 +71,6 @@ async function main() {
         role: u.role,
         blocked: false,
         team: u.team,
-        profileSetupComplete: u.profileSetupComplete,
       },
       create: { ...u, phone: "" },
     });

@@ -22,6 +22,7 @@ import {
   ChevronsUpDown,
   ChevronDown,
 } from "lucide-react";
+import Image from "next/image";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationsMenu } from "./NotificationsMenu";
@@ -182,8 +183,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               title="essentia"
             >
               {compact ? (
-                <span className="flex h-9 w-9 items-center justify-center border border-line font-body text-[13px] font-light text-fg">
-                  e
+                <span className="flex h-9 w-9 items-center justify-center border border-line bg-bg p-1.5">
+                  <Image
+                    src="/favicon.png"
+                    alt="essentia"
+                    width={24}
+                    height={24}
+                    className="object-contain"
+                    priority
+                  />
                 </span>
               ) : (
                 <Logo variant={logoVariant} height={20} />
