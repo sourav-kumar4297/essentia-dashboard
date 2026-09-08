@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
 import { canViewAllLeads, memberCanSetStatus, memberLeadWhere } from "@/lib/rbac";
 import type { BdLeadStatus, ReferralApproval } from "@/lib/bd-types";
+import { notifyLeadAssigned } from "@/lib/notifications";
 
 const leadInclude = {
   assignedTo: { select: { id: true, name: true, email: true, role: true } },
