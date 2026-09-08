@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BdLeadStatus, ReferralApproval } from "@/lib/bd-types";
+import { onLeadsChanged } from "@/lib/leads-events";
 
 export interface BdLeadRow {
   id: string;
@@ -61,6 +62,8 @@ export function useLeadTotal() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => onLeadsChanged(() => void refresh()), [refresh]);
 
   return { total, refresh };
 }
@@ -140,6 +143,8 @@ export function useBdLeadsPage(
     void refresh();
   }, [refresh]);
 
+  useEffect(() => onLeadsChanged(() => void refresh()), [refresh]);
+
   return { leads, total, loading, error, refresh, setLeads };
 }
 
@@ -205,6 +210,8 @@ export function useBdLeads() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => onLeadsChanged(() => void refresh()), [refresh]);
 
   return {
     leads,

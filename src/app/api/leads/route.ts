@@ -202,6 +202,20 @@ export async function POST(req: Request) {
       },
     });
 
+    if (
+      lead.assignedToId &&
+      lead.assignedTo &&
+      lead.assignedToId !== user.id
+    ) {
+      await notifyLeadAssigned({
+        assigneeId: lead.assignedTo.id,
+        assigneeName: lead.assignedTo.name,
+        leadId: lead.id,
+        leadName: lead.name,
+        assignerName: user.name,
+      });
+    }
+
     return NextResponse.json({ lead }, { status: 201 });
   } catch (err) {
     console.error(err);

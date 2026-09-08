@@ -9,6 +9,7 @@ import {
   memberCanSetStatus,
 } from "@/lib/rbac";
 import type { BdLeadStatus, ReferralApproval } from "@/lib/bd-types";
+import { notifyLeadAssigned } from "@/lib/notifications";
 
 const leadInclude = {
   assignedTo: { select: { id: true, name: true, email: true, role: true } },
@@ -221,6 +222,15 @@ export async function PATCH(req: Request, { params }: Params) {
           : "Unassigned.",
       },
     });
+    if (data.assignedToId && lead.assignedTo) {
+      await notifyLeadAssigned({
+        assigneeId: lead.assignedTo.id,
+        assigneeName: lead.assignedTo.name,
+        leadId: lead.id,
+        leadName: lead.name,
+        assignerName: user.name,
+      });
+    }
   }
 
   if (data.referralApproval === "PENDING" && existing.referralApproval === "REJECTED") {

@@ -27,6 +27,7 @@ model User {
   assignedLeads Lead[]         @relation("AssignedLeads")
   createdLeads  Lead[]         @relation("CreatedLeads")
   activities    LeadActivity[]
+  notifications Notification[]
 }
 
 model OtpCode {
@@ -107,4 +108,21 @@ model LeadActivity {
   createdBy User? @relation(fields: [createdById], references: [id])
 
   @@index([leadId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  /// LEAD_ASSIGNED | …
+  type      String
+  title     String
+  body      String
+  leadId    String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }

@@ -9,6 +9,7 @@ import {
   memberCanSetStatus,
 } from "@/lib/rbac";
 import type { BdLeadStatus } from "@/lib/bd-types";
+import { notifyLeadAssigned } from "@/lib/notifications";
 
 export async function PATCH(req: Request) {
   const user = await getSessionUser();
@@ -118,11 +119,29 @@ export async function PATCH(req: Request) {
 
     await prisma.lead.update({ where: { id }, data });
 
+    let assigneeName = "";
+    if (hasAssign && data.assignedToId) {
+      const assignee = await prisma.user.findUnique({
+        where: { id: String(data.assignedToId) },
+        select: { id: true, name: true },
+      });
+      assigneeName = assignee?.name ?? "";
+      if (assignee) {
+        await notifyLeadAssigned({
+          assigneeId: assignee.id,
+          assigneeName: assignee.name,
+          leadId: id,
+          leadName: existing.name,
+          assignerName: user.name,
+        });
+      }
+    }
+
     const note = returnToAdmin
       ? `Bulk: returned to Admin (${String(data.qualification ?? existing.qualification)}).`
       : hasAssign
         ? data.assignedToId
-          ? "Bulk: assigned."
+          ? `Bulk: assigned to ${assigneeName || "executive"}.`
           : "Bulk: unassigned."
         : hasStatus
           ? `Bulk: status → ${body.status}.`
