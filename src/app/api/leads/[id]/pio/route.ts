@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
 import { canAccessLead } from "@/lib/rbac";
@@ -62,7 +63,7 @@ export async function PUT(req: Request, { params }: Params) {
   const updated = await prisma.lead.update({
     where: { id },
     data: {
-      pioData: pio,
+      pioData: pio as unknown as Prisma.InputJsonValue,
       ...(body.markReleased ? { pioReleased: true } : {}),
     },
   });
