@@ -81,6 +81,8 @@ model Lead {
   handoverComplete     Boolean @default(false)
   handoverNotes        String?
   crmTeamLead          String?
+  /// Editable Design PIO document (JSON) — step 5
+  pioData              Json?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   lastFollowUpAt     DateTime?

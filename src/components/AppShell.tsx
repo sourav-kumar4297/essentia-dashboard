@@ -11,6 +11,7 @@ import {
   Radio,
   Calculator,
   FileUser,
+  FileText,
   LogOut,
   Menu,
   X,
@@ -74,6 +75,12 @@ const MAIN_NAV = [
         icon: Calculator,
       },
       {
+        href: "/pio",
+        label: "Design PIO",
+        hint: "Generate design PIO",
+        icon: FileText,
+      },
+      {
         href: "/company-profile",
         label: "Profile Generator",
         hint: "Company profile draft",
@@ -131,7 +138,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/board") ||
     pathname.startsWith("/pipeline") ||
     pathname.startsWith("/channels") ||
-    pathname.startsWith("/proposals");
+    pathname.startsWith("/proposals") ||
+    pathname.startsWith("/pio");
 
   useEffect(() => {
     setProfileMenuOpen(false);

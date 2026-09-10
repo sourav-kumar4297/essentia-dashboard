@@ -29,6 +29,7 @@ export interface BdLeadRow {
   handoverComplete: boolean;
   handoverNotes: string | null;
   crmTeamLead: string | null;
+  pioData?: unknown;
   createdAt: string;
   updatedAt: string;
   assignedTo?: { id: string; name: string; email: string; role?: string } | null;

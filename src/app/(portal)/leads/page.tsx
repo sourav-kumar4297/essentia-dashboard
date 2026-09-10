@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { Button, Field, PageHeader, QualBadge, inputClass } from "@/components/ui";
+import { DesignPioPanel } from "@/components/DesignPioPanel";
 import { LeadsTableSkeleton } from "@/components/PortalSkeleton";
 import { SuspenseWrap } from "@/components/SuspenseWrap";
 import { PlatformTabs } from "@/components/PlatformTabs";
@@ -884,6 +885,7 @@ function LeadDetailBody({
   const [crmLead, setCrmLead] = useState(lead.crmTeamLead ?? "");
   const [qual, setQual] = useState(lead.qualification);
   const [callNote, setCallNote] = useState("");
+  const [pioOpen, setPioOpen] = useState(false);
 
   const statuses = isAdmin ? STATUSES : MEMBER_STATUSES;
   const assignedToMe = full.assignedToId === currentUserId;
@@ -1169,6 +1171,31 @@ function LeadDetailBody({
           {error}
         </p>
       )}
+
+      <div className="border border-line p-4">
+        <p className="label text-fg">Design PIO</p>
+        <p className="metric mt-1 text-fg-dim">
+          Generate Essentia Design PIO for this lead. Edit scope, schedule,
+          payments and team before saving.
+        </p>
+        <Button
+          className="mt-3 w-full"
+          variant="secondary"
+          onClick={() => setPioOpen(true)}
+        >
+          {view.pioReleased ? "Open Design PIO" : "Generate Design PIO"}
+        </Button>
+        {view.pioReleased ? (
+          <p className="metric mt-2 text-fg-dim">Marked released</p>
+        ) : null}
+      </div>
+
+      <DesignPioPanel
+        leadId={view.id}
+        open={pioOpen}
+        onClose={() => setPioOpen(false)}
+        onSaved={() => void reload().then(() => onChanged())}
+      />
 
       {isAdmin && view.status === "WON" && (
         <div className="space-y-3 border border-line p-4">
