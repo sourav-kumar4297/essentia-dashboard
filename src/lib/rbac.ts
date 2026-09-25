@@ -30,6 +30,10 @@ export function canManageUsers(role: Role): boolean {
   return role === "SUPERADMIN";
 }
 
+export function canExportAllLeads(role: Role): boolean {
+  return role === "SUPERADMIN";
+}
+
 /** True if this session is Super Admin, or Super Admin checked in as someone else. */
 export function isSuperAdminSession(user: {
   role: Role;

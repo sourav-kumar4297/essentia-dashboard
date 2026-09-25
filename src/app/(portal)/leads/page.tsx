@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Download,
   Eye,
   Pencil,
   Plus,
@@ -35,7 +36,14 @@ import {
   type ReferralApproval,
 } from "@/lib/bd-types";
 import { BD_SOURCE_OPTIONS } from "@/lib/bd-channels";
-import { canApproveReferrals, canAssignLeads, canSyncHubspot, isHotOrWarm, MEMBER_STATUSES } from "@/lib/rbac";
+import {
+  canApproveReferrals,
+  canAssignLeads,
+  canExportAllLeads,
+  canSyncHubspot,
+  isHotOrWarm,
+  MEMBER_STATUSES,
+} from "@/lib/rbac";
 import { clsx } from "clsx";
 import { format } from "date-fns";
 
@@ -101,6 +109,9 @@ function LeadsInner() {
   const [bulkStatus, setBulkStatus] = useState("");
   const [bulkQual, setBulkQual] = useState("");
   const [bulkMsg, setBulkMsg] = useState("");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
+  const canExport = Boolean(user && canExportAllLeads(user.role));
 
   const { leads, total, loading, refresh } = useBdLeadsPage(page, pageSize, {
     status: statusFilter,
@@ -186,6 +197,38 @@ function LeadsInner() {
     }
   }
 
+  async function exportAllLeads() {
+    if (!canExport || exportBusy) return;
+    setExportBusy(true);
+    setExportMsg("");
+    try {
+      const res = await fetch("/api/leads/export", { credentials: "include" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setExportMsg(data.error || "Export failed.");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = /filename="([^"]+)"/.exec(disposition);
+      const filename =
+        match?.[1] || `essentia-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExportMsg("Download started.");
+    } catch {
+      setExportMsg("Network error.");
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
 
   useEffect(() => {
@@ -229,17 +272,35 @@ function LeadsInner() {
             : "Call your assigned leads, log what the client said, and return Hot/Warm ones to Team Leader."
         }
         actions={
-          <Button
-            onClick={() => {
-              setEditId(null);
-              setFormOpen(true);
-            }}
-          >
-            <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
-            New Lead
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {canExport && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={exportBusy}
+                onClick={() => void exportAllLeads()}
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+                {exportBusy ? "Exporting…" : "Export all"}
+              </Button>
+            )}
+            <Button
+              onClick={() => {
+                setEditId(null);
+                setFormOpen(true);
+              }}
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" strokeWidth={1.5} />
+              New Lead
+            </Button>
+          </div>
         }
       />
+      {exportMsg ? (
+        <p className="mb-3 font-body text-[12px] font-light text-fg-muted">
+          {exportMsg}
+        </p>
+      ) : null}
 
       <PlatformTabs />
 
